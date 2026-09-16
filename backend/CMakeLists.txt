@@ -6,18 +6,22 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Find Crow from vcpkg
 find_package(Crow CONFIG REQUIRED)
 
-# Automatically find all .cpp and .h files
+# Find all Valcon source/header files
 file(GLOB_RECURSE VALCON_SOURCES
     CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
-# Build the backend
+# Do NOT include generated/build folders
+list(FILTER VALCON_SOURCES EXCLUDE REGEX "/out/")
+list(FILTER VALCON_SOURCES EXCLUDE REGEX "/\\.vs/")
+
 add_executable(ValconBackend ${VALCON_SOURCES})
 
-# Link Crow
-target_link_libraries(ValconBackend PRIVATE Crow::Crow)
+target_link_libraries(ValconBackend
+    PRIVATE
+    Crow::Crow
+)
