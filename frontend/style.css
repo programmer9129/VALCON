@@ -1,1 +1,162 @@
+* {
+  box-sizing: border-box;
+}
 
+body {
+  margin: 0;
+  background-color: #121212;
+  color: #ffffff;
+  font-family: monospace;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#terminal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+#tabs {
+  display: flex;
+  padding: 8px;
+  border-bottom: 1px solid white;
+}
+
+#output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+
+  font-family: monospace;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.cli {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.close {
+  color: #666;
+  font-size: 14px;
+}
+
+.close:hover {
+  color: white;
+}
+
+.tab {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.tab:hover {
+  background: #1c1c1c1c;
+  color: white;
+}
+
+.tab.active {
+  background: #222
+  color: white;
+  border-color: #444;
+}
+
+#newTerminal {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+}
+
+#newTerminal:hover {
+  color: white;
+}
+
+#status {
+  padding: 8px 16px;
+  border-top: 1px solid #333;
+  font-size: 13px;
+}
+
+.input {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border-top: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.prompt {
+  color: #ffffff;
+  white-space: pre;
+}
+
+.typed {
+  color: #00ff00;
+  white-space: pre;
+}
+
+.cursor {
+  width: 8px;
+  background-color: #00ff00;
+  height: 1.2em;
+  animation: blink 1s infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+#status {
+  height: 32px;
+  padding: 0 12px;
+  border-top: 1px solid #333;
+  align-items: center;
+  font-size: 13px;
+  color: #888;
+  justify-content: space-between;
+  display: flex;
+}
+
+#conn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+#connDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4caf50;
+}
+#currentShell {
+  color: #aaa;
+}
+#valconVersion {
+  color: #666;
+}
