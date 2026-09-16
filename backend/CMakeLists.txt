@@ -1,21 +1,23 @@
-﻿# CMakeList.txt : CMake project for Super_file_base, include source and define
-# project specific logic here.
-#
-cmake_minimum_required (VERSION 3.10)
+﻿cmake_minimum_required(VERSION 3.20)
 
-# Enable Hot Reload for MSVC compilers if supported.
-if (POLICY CMP0141)
-  cmake_policy(SET CMP0141 NEW)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
+project(ValconBackend LANGUAGES CXX)
 
-project ("Super_file_base")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Add source to this project's executable.
-add_executable (Super_file_base "Super_file_base.cpp" "Super_file_base.h")
+# Find Crow from vcpkg
+find_package(Crow CONFIG REQUIRED)
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET Super_file_base PROPERTY CXX_STANDARD 20)
-endif()
+# Automatically find all .cpp and .h files
+file(GLOB_RECURSE VALCON_SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+)
 
-# TODO: Add tests and install targets if needed.
+# Build the backend
+add_executable(ValconBackend ${VALCON_SOURCES})
+
+# Link Crow
+target_link_libraries(ValconBackend PRIVATE Crow::Crow)
