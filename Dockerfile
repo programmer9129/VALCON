@@ -12,7 +12,7 @@ WORKDIR /app
 COPY . .
 
 RUN g++ -std=c++17 \
-    -Ibackend/vcpkg_installed/x64-windows/include/crow \
+    -Ibackend/vcpkg_installed/x64-windows/include\
     backend/Super_file_base.cpp \
     -o backend_app \
     -pthread
