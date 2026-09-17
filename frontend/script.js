@@ -8,7 +8,6 @@ let processing = false;
 let activeTerminalId = null;
 let currentInput = null;
 
-// FIX: Changed 'input.focus()' to 'currentInput.focus()' to avoid ReferenceError
 document.addEventListener("click", () => {
   if (currentInput) {
     currentInput.focus();
@@ -43,6 +42,7 @@ function createTab(terminal) {
   tab.id = `tab-${terminal.id}`;
 
   const name = document.createElement("span");
+  name.className = "tab-name";
   name.textContent = terminal.name;
 
   const close = document.createElement("span");
@@ -83,6 +83,12 @@ function switchTerminal(id) {
     print(line);
   });
 
+  const statusOfShell = document.getElementById("currentShell");
+
+  if (statusOfShell) {
+    statusOfShell.textContent = activeTerm.name;
+  }
+
   createInput();
 }
 function closeTerminal(id) {
@@ -97,6 +103,8 @@ function closeTerminal(id) {
   if (tab) {
     tab.remove();
   }
+
+  updateNameTerminal();
 
   if (activeTerminalId === id) {
     const newI = Math.max(0, index - 1);
@@ -119,8 +127,6 @@ async function sendCmd(cmd) {
     throw new Error(`Server error: ${res.status}`);
   }
 
-  //const data = await res.json();
-  //return data;
   return await res.json();
 }
 
@@ -132,9 +138,11 @@ function createInput() {
   prompt.className = "prompt";
   prompt.textContent = "user@valcon:~$ ";
 
-  const typed = document.createElement("span");
-  typed.className = "typed";
+  const before = document.createElement("span");
+  before.className = "typed";
 
+  const after = document.createElement("span");
+  after.className = "after";
   const cursor = document.createElement("span");
   cursor.className = "cursor";
 
@@ -143,15 +151,21 @@ function createInput() {
   input.type = "text";
 
   inputrow.appendChild(prompt);
-  inputrow.appendChild(typed);
+  inputrow.appendChild(before);
   inputrow.appendChild(cursor);
+  inputrow.appendChild(after);
   inputrow.appendChild(input);
 
   output.appendChild(inputrow);
 
-  input.addEventListener("input", () => {
-    typed.textContent = input.value;
-  });
+  function updateVisualInput() {
+    const position = input.selectionStart;
+    before.textContent = input.value.slice(0, position);
+    after.textContent = input.value.slice(position);
+  }
+  input.addEventListener("input", updateVisualInput);
+  input.addEventListener("keyup", updateVisualInput);
+  input.addEventListener("click", updateVisualInput);
 
   input.addEventListener("keydown", async (evnt) => {
     if (evnt.key !== "Enter" || processing) {
@@ -218,5 +232,20 @@ function createInput() {
   input.focus();
 
   output.scrollTop = output.scrollHeight;
+}
+
+function updateNameTerminal() {
+  terminals.forEach((terminal, index) => {
+    terminal.name = `Shell ${index + 1}`;
+
+    const tab = document.getElementById(`tab-${terminal.id}`);
+
+    if (tab) {
+      const name = tab.querySelector(".tab-name");
+      if (name) {
+        name.textContent = terminal.name;
+      }
+    }
+  });
 }
 createTerminal();

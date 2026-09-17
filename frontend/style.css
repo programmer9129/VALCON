@@ -94,7 +94,7 @@ body {
 
 .input {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   padding: 0;
   border-top: none;
   font-family: inherit;
@@ -107,7 +107,7 @@ body {
 }
 
 .typed {
-  color: #00ff00;
+  color: #e0e0e0;
   white-space: pre;
 }
 
@@ -117,7 +117,8 @@ body {
   height: 1.2em;
   animation: blink 1s infinite;
   display: inline-block;
-  vertical-align: middle;
+  pointer-events: none;
+  vertical-align: text-bottom;
 }
 
 @keyframes blink {
@@ -159,4 +160,8 @@ body {
 }
 #valconVersion {
   color: #666;
+}
+.after {
+  color: #e0e0e0;
+  white-space: pre;
 }
