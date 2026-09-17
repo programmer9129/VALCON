@@ -29,7 +29,7 @@ function createTerminal() {
   const terminal = {
     id: Date.now(),
     name: `Shell ${terminals.length + 1}`,
-    history: ["Welcome to WebOS", "Type 'help' if you need any commands.."],
+    history: ["Welcome to VALCON_WEB_TERMINAL", "Type 'help' if you need any commands.."],
   };
 
   terminals.push(terminal);
