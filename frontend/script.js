@@ -104,7 +104,7 @@ function closeTerminal(id) {
   }
 }
 async function sendCmd(cmd) {
-  const res = await fetch("http://localhost:8080/json", {
+  const res = await fetch("https://valcon-r5ti.onrender.com", {
     method: "POST",
     headers: {
       "Content-Type": "text/plain",

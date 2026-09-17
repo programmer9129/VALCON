@@ -5,6 +5,7 @@
 #include "crow.h"
 #include <string.h>
 #include <algorithm>
+#include <cstdlib>
 
 using namespace std;
 string processstrings(string order_commands);
@@ -83,7 +84,10 @@ int main()
 				res.set_header("Access-Control-Allow-Origin", "*");
 				return res;
 			});
-	app.port(8080).multithreaded().run();
+	const char* port = std::getenv("PORT");
+	app.port(port ? std::stoi(port) : 8080).multithreaded().run();
+
+	//app.port(8080).multithreaded().run();
 
 }
 string processstrings(string order_commands)
@@ -98,14 +102,18 @@ string processstrings(string order_commands)
 			" echo --> echo what the user says \n"
 			" introduce yourself --> introduce itself to you...\n";
 	}
-	if (order_commands == "whoami")
+	if (order_commands == "introduceyourself")
 	{
 		return
 			" Hi!, I am Valcon .A Web CLI Application, I can do much things. \n"
 			" to be continued \n";
 	}
+	if (order_commands == "calculate")
+	{
+		std::string calc_command = order_commands.substr(9);
+		// Process the calculation command
+	}
 	else {
 		return "no command found";
 	}
 }
-
