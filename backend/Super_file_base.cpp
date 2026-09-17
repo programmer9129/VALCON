@@ -14,14 +14,35 @@ int main()
 	CROW_ROUTE(app, "/")([]
 	{
 		return "Hello, World!";
-		return "hello, this is cmake crow c++ hoster web please , respond trigger 000900090009000 dont care random number tho... ";
 	});
 
 	CROW_ROUTE(app, "/json")
-		.methods(crow::HTTPMethod::POST)
+		.methods(crow::HTTPMethod::GET,
+			crow::HTTPMethod::POST,
+			crow::HTTPMethod::OPTIONS )
 
 		([](const crow::request& req)
 			{
+				if (req.method == crow::HTTPMethod::OPTIONS)
+				{
+					crow::json::wvalue response;
+					response["success"] = true;
+					auto res = crow::response(200, response);
+					res.set_header("Access-Control-Allow-Origin", "*");
+					res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+					res.set_header("Access-Control-Allow-Headers", "Content-Type");
+					return res;
+				}
+
+				if (req.method == crow::HTTPMethod::GET)
+				{
+					crow::json::wvalue response;
+					response["success"] = true;
+					response["message"] = "This is a GET request";
+					auto res = crow::response(200, response);
+					res.set_header("Access-Control-Allow-Origin", "*");
+					return res;
+				}
 				auto body = crow::json::load(req.body);
 
 				if (!body)
@@ -30,26 +51,35 @@ int main()
 					error["success"] = false;
 					error["error"] = "Invalid JSON";
 
-					return crow::response(400, error);
+					auto res = crow::response(400, error);
+					res.set_header("Access-Control-Allow-Origin", "*");
+					return res;
 				}
 
-				if (!body["input"])
+				if (!body["command"])
 				{
 					crow::json::wvalue error;
 					error["success"] = false;
-					error["error"] = "Missing input";
+					error["error"] = "Missing command";
 
-					return crow::response(400, error);
+					auto res = crow::response(400, error);
+					res.set_header("Access-Control-Allow-Origin", "*");
+					return res;
 				}
 
-				std::string userinput = body["input"].s();
+				std::string command = body["command"].s();
 				crow::json::wvalue response;
 
 				response["success"] = true;
-				response["output"] = "C++ crow server is on hot action buddy" + userinput;
-				return crow::response(response);
+				response["output"] = "C++ crow server is on hot action buddy -->> " + command;
 
-
+				if(body["terminal"])
+				{
+					response["terminal"] = body["terminal"].i();
+				}
+				auto res = crow::response(response);
+				res.set_header("Access-Control-Allow-Origin", "*");
+				return res;
 			});
 
 			

@@ -91,7 +91,7 @@ function closeTerminal(id) {
   const index = terminals.findIndex((t) => t.id === id);
   terminals = terminals.filter((t) => t.id !== id);
 
-  const tab = document.getElementById(`tan-${id}`);
+  const tab = document.getElementById(`tab-${id}`);
 
   if (tab) {
     tab.remove();
@@ -103,10 +103,10 @@ function closeTerminal(id) {
   }
 }
 async function sendCmd(cmd) {
-  const res = await fetch("https://jsonplaceholder.typicode.com/posts", {
+  const res = await fetch("http://localhost:8080/json", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "text/plain",
     },
     body: JSON.stringify({
       terminal: activeTerminalId,
@@ -118,8 +118,9 @@ async function sendCmd(cmd) {
     throw new Error(`Server error: ${res.status}`);
   }
 
-  const data = await res.json();
-  return data;
+  //const data = await res.json();
+  //return data;
+  return await res.json();
 }
 
 function createInput() {
@@ -185,7 +186,7 @@ function createInput() {
 
     try {
       const data = await sendCmd(command);
-      const responseText = JSON.stringify(data);
+      const responseText = data.output;
 
       if (activeTerm) {
         activeTerm.history.push(responseText);
@@ -193,7 +194,7 @@ function createInput() {
 
       print(responseText);
     } catch (err) {
-      const errText = "Something went wrong in the backend";
+      const errText = "Something went wrong in the backend" + err.message;
 
       if (activeTerm) {
         activeTerm.history.push(errText);
