@@ -104,5 +104,8 @@ string processstrings(string order_commands)
 			" Hi!, I am Valcon .A Web CLI Application, I can do much things. \n"
 			" to be continued \n";
 	}
+	else {
+		return "no command found";
+	}
 }
 
