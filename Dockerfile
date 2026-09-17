@@ -11,8 +11,11 @@ WORKDIR /app
 
 COPY . .
 
-RUN g++ -std=c++17 backend/Super_file_base.cpp -o backend -pthread
+RUN g++ -std=c++17 \
+    backend/Super_file_base.cpp \
+    -o backend_app \
+    -pthread
 
 EXPOSE 8080
 
-CMD ["./backend"]
+CMD ["./backend_app"]
