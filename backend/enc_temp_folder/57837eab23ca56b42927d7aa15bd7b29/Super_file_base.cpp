@@ -4,8 +4,10 @@
 #include "Super_file_base.h"
 #include "crow.h"
 #include <string.h>
+#include <algorithm>
 
 using namespace std;
+string processstrings(string order_commands);
 
 int main()
 {
@@ -69,9 +71,9 @@ int main()
 
 				std::string command = body["command"].s();
 				crow::json::wvalue response;
-
+				std::string result = processstrings(command);
 				response["success"] = true;
-				response["output"] = "C++ crow server is on hot action buddy" + command;
+				response["output"] = "   " + result;
 
 				if(body["terminal"])
 				{
@@ -81,10 +83,26 @@ int main()
 				res.set_header("Access-Control-Allow-Origin", "*");
 				return res;
 			});
-
-			
-
 	app.port(8080).multithreaded().run();
 
+}
+string processstrings(string order_commands)
+{
+	
+	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
+	if (order_commands == "help")
+	{
+		return
+			" who am i --> says who are you \n"
+			" calc --> calculate the calculation \n"
+			" echo --> echo what the user says \n"
+			" introduce yourself --> introduce itself to you...\n";
+	}
+	if (order_commands == "whoami")
+	{
+		return
+			" Hi!, I am Valcon .A Web CLI Application, I can do much things. \n"
+			" to be continued \n";
+	}
 }
 

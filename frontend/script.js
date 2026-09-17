@@ -19,6 +19,7 @@ newT.addEventListener("click", createTerminal);
 
 function print(text) {
   const line = document.createElement("div");
+  line.style.whiteSpace = "pre-wrap";
   line.textContent = text;
   output.appendChild(line);
   output.scrollTop = output.scrollHeight;
