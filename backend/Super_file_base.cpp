@@ -22,6 +22,18 @@ int main()
 	{
 		return "Hello, World!";
 	});
+	CROW_ROUTE(app, "/health_bridge")
+	([] {
+
+		crow::json::wvalue response;
+
+		response["status"] = "OK";
+		response["service"] = "cpp";
+		response["message"] = "Backend is online now. Ready for commands ";
+
+		return crow::response(response);
+	
+	});
 
 	CROW_ROUTE(app, "/json")
 		.methods(crow::HTTPMethod::GET,
@@ -101,10 +113,13 @@ string processstrings(string order_commands)
 	if (order_commands == "help")
 	{
 		return
-			" who am i --> says who are you \n"
-			" calc --> calculate the calculation \n"
-			" echo --> echo what the user says \n"
-			" introduce yourself --> introduce itself to you...\n";
+			" who am i --> Says who are You. \n"
+			" calculate {your calculation input} --> Calculate The Calculation Input. \n"
+			" start echo --> echo what the USER says. \n"
+			" introduce yourself --> Introduce itself to USER.\n"
+			" folder open {name of the folder} --> open the folder USER want. \n"
+			" file open {name of the file} --> open the file USER want. \n "
+			" Valcon Show directory sequence --> the comand show the directory sequence of files nad folders. \n";
 	}
 	if (order_commands == "introduceyourself")
 	{
@@ -115,9 +130,21 @@ string processstrings(string order_commands)
 	if (search_calculate != std::string::npos)
 	{
 		std::string calc_command = order_commands.substr(9);
-		// Process the calculation command
 		std::string answer = CALCULATOR(calc_command);
 		return answer;
+	}
+	if (order_commands == "startecho")
+	{
+		bool access_desk = true;
+		while (access_desk)
+		{
+			if (order_commands == "stopecho")
+			{
+				access_desk = false;
+			}
+			std::string echo_string = order_commands.substr(4);
+			return echo_string;
+		}
 	}
 	else {
 		return "no command found";
