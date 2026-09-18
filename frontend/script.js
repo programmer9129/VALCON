@@ -1,35 +1,68 @@
-const tabs = document.getElementById("tabs");
-const terminal = document.getElementById("terminal");
-const output = document.getElementById("output");
-const newT = document.getElementById("newTerminal");
-//const ID_OF_BACKEND_1 = "https://valcon-r5ti.onrender.com/json";
-const ID_OF_BACKEND_2 = "http://localhost:8080/json";
-let terminals = [];
-let processing = false;
-let activeTerminalId = null;
-let currentInput = null;
+import "@awesome.me/webawesome/dist/styles/webawesome.css";
+import "@awesome.me/webawesome/dist/components/page/page.js";
+import "@awesome.me/webawesome/dist/components/icon/icon.js";
+import "@awesome.me/webawesome/dist/components/button/button.js";
+import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
+import "@awesome.me/webawesome/dist/components/dialog/dialog.js";
 
-document.addEventListener("click", () => {
-  if (currentInput) {
-    currentInput.focus();
+const tabs = document.getElementById("terminalTabs");
+const output = document.getElementById("output");
+const newTerminal = document.getElementById("newTerminal");
+const settingsButton = document.getElementById("settingsButton");
+const settings = document.getElementById("settingsDialog");
+const closeSettings = document.getElementById("closeSettings");
+const con = document.getElementById("connectionText");
+const shell = document.getElementById("currentShell");
+const version = document.getElementById("valconVersion");
+const clock = document.getElementById("clock");
+
+const backend = "http://localhost:8080/json";
+
+let terminals = [];
+let activeTerminal = null;
+let currentInput = null;
+let processing = false;
+
+document.addEventListener("click", (event) => {
+  if (
+    !event.target.closest(
+      "#settingsButton, #closeSettings, #newTerminal, .tab, wa-dialog",
+    )
+  ) {
+    currentInput?.focus();
   }
 });
 
-newT.addEventListener("click", createTerminal);
+settingsButton.onclick = () => {
+  settings.open = true;
+};
 
-function print(text) {
-  const line = document.createElement("div");
-  line.style.whiteSpace = "pre-wrap";
-  line.textContent = text;
-  output.appendChild(line);
-  output.scrollTop = output.scrollHeight;
+closeSettings.onclick = () => {
+  settings.open = false;
+};
+
+newTerminal.onclick = createTerminal;
+
+function updateClock() {
+  clock.textContent = new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
+
+updateClock();
+setInterval(updateClock, 1000);
 
 function createTerminal() {
   const terminal = {
     id: Date.now(),
     name: `Shell ${terminals.length + 1}`,
-    history: ["Welcome to VALCON_WEB_TERMINAL", "Type 'help' if you need any commands.."],
+    history: [
+      "Welcome to VALCON_WEB_TERMINAL",
+      "Type 'help' if you need any commands..",
+    ],
   };
 
   terminals.push(terminal);
@@ -39,157 +72,176 @@ function createTerminal() {
 
 function createTab(terminal) {
   const tab = document.createElement("button");
+  const name = document.createElement("span");
+  const close = document.createElement("span");
+
   tab.className = "tab";
   tab.id = `tab-${terminal.id}`;
+  tab.type = "button";
 
-  const name = document.createElement("span");
   name.className = "tab-name";
   name.textContent = terminal.name;
 
-  const close = document.createElement("span");
   close.className = "close";
-  close.textContent = "x";
+  close.textContent = "×";
 
-  tab.appendChild(name);
-  tab.appendChild(close);
+  tab.append(name, close);
+  tabs.appendChild(tab);
 
-  tab.addEventListener("click", (evnt) => {
-    if (evnt.target === close) {
+  tab.onclick = (event) => {
+    if (event.target === close) {
       closeTerminal(terminal.id);
-      return;
+    } else {
+      switchTerminal(terminal.id);
     }
-    switchTerminal(terminal.id);
-  });
-
-  tabs.insertBefore(tab, newT);
+  };
 }
 
 function switchTerminal(id) {
-  activeTerminalId = id;
+  activeTerminal = id;
 
-  document
-    .querySelectorAll(".tab")
-    .forEach((t) => t.classList.remove("active"));
-  const activeTab = document.getElementById(`tab-${id}`);
-  if (activeTab) activeTab.classList.add("active");
-
-  output.innerHTML = "";
-  const activeTerm = terminals.find((t) => t.id === id);
-
-  if (!activeTerm) {
-    return;
-  }
-
-  activeTerm.history.forEach((line) => {
-    print(line);
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.classList.remove("active");
   });
 
-  const statusOfShell = document.getElementById("currentShell");
+  document.getElementById(`tab-${id}`)?.classList.add("active");
 
-  if (statusOfShell) {
-    statusOfShell.textContent = activeTerm.name;
-  }
+  const terminal = terminals.find((t) => t.id === id);
+
+  if (!terminal) return;
+
+  output.innerHTML = "";
+  terminal.history.forEach(print);
+
+  shell.textContent = terminal.name;
 
   createInput();
 }
+
 function closeTerminal(id) {
-  if (terminals.length === 1) {
-    return;
-  }
+  if (terminals.length === 1) return;
+
   const index = terminals.findIndex((t) => t.id === id);
+
   terminals = terminals.filter((t) => t.id !== id);
 
-  const tab = document.getElementById(`tab-${id}`);
+  document.getElementById(`tab-${id}`)?.remove();
 
-  if (tab) {
-    tab.remove();
-  }
+  updateTerminalNames();
 
-  updateNameTerminal();
-
-  if (activeTerminalId === id) {
-    const newI = Math.max(0, index - 1);
-    switchTerminal(terminals[newI].id);
+  if (activeTerminal === id) {
+    switchTerminal(terminals[Math.max(0, index - 1)].id);
   }
 }
-async function sendCmd(cmd) {
-  const res = await fetch(ID_OF_BACKEND_2, {
+
+function updateTerminalNames() {
+  terminals.forEach((terminal, index) => {
+    terminal.name = `Shell ${index + 1}`;
+
+    const name = document
+      .getElementById(`tab-${terminal.id}`)
+      ?.querySelector(".tab-name");
+
+    if (name) {
+      name.textContent = terminal.name;
+    }
+  });
+
+  const terminal = terminals.find((t) => t.id === activeTerminal);
+
+  if (terminal) {
+    shell.textContent = terminal.name;
+  }
+}
+
+function print(text) {
+  const line = document.createElement("div");
+
+  line.style.whiteSpace = "pre-wrap";
+  line.textContent = text;
+
+  output.appendChild(line);
+
+  const terminal = document.getElementById("terminal");
+
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function sendCommand(command) {
+  const response = await fetch(backend, {
     method: "POST",
     headers: {
-      "Content-Type": "text/plain",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      terminal: activeTerminalId,
-      command: cmd,
+      terminal: activeTerminal,
+      command,
     }),
   });
 
-  if (!res.ok) {
-    throw new Error(`Server error: ${res.status}`);
+  if (!response.ok) {
+    throw new Error(`Server error: ${response.status}`);
   }
 
-  return await res.json();
+  return response.json();
 }
 
 function createInput() {
-  const inputrow = document.createElement("div");
-  inputrow.className = "input";
-
+  const row = document.createElement("div");
   const prompt = document.createElement("span");
+  const typed = document.createElement("span");
+  const cursor = document.createElement("span");
+  const after = document.createElement("span");
+  const input = document.createElement("input");
+
+  row.className = "input";
   prompt.className = "prompt";
+  typed.className = "typed";
+  cursor.className = "cursor";
+  after.className = "after";
+  input.className = "cli";
+
+  input.type = "text";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+
   prompt.textContent = "user@valcon:~$ ";
 
-  const before = document.createElement("span");
-  before.className = "typed";
+  row.append(prompt, typed, cursor, after, input);
 
-  const after = document.createElement("span");
-  after.className = "after";
-  const cursor = document.createElement("span");
-  cursor.className = "cursor";
+  output.appendChild(row);
 
-  const input = document.createElement("input");
-  input.className = "cli";
-  input.type = "text";
+  function updateInput() {
+    const position = input.selectionStart ?? input.value.length;
 
-  inputrow.appendChild(prompt);
-  inputrow.appendChild(before);
-  inputrow.appendChild(cursor);
-  inputrow.appendChild(after);
-  inputrow.appendChild(input);
+    typed.textContent = input.value.slice(0, position);
 
-  output.appendChild(inputrow);
-
-  function updateVisualInput() {
-    const position = input.selectionStart;
-    before.textContent = input.value.slice(0, position);
     after.textContent = input.value.slice(position);
   }
-  input.addEventListener("input", updateVisualInput);
-  input.addEventListener("keyup", updateVisualInput);
-  input.addEventListener("click", updateVisualInput);
 
-  input.addEventListener("keydown", async (evnt) => {
-    if (evnt.key !== "Enter" || processing) {
-      return;
-    }
+  input.addEventListener("input", updateInput);
+  input.addEventListener("keyup", updateInput);
+  input.addEventListener("click", updateInput);
+
+  input.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter" || processing) return;
 
     const command = input.value.trim();
 
-    if (command === "") {
-      return;
-    }
+    if (!command) return;
 
     processing = true;
+    input.disabled = true;
 
-    const activeTerm = terminals.find((t) => t.id === activeTerminalId);
+    const terminal = terminals.find((t) => t.id === activeTerminal);
 
-    if (activeTerm) {
-      activeTerm.history.push(`user@valcon:~$ ${command}`);
+    if (terminal) {
+      terminal.history.push(`user@valcon:~$ ${command}`);
     }
 
     if (command === "clear") {
-      if (activeTerm) {
-        activeTerm.history = [];
+      if (terminal) {
+        terminal.history = [];
       }
 
       output.innerHTML = "";
@@ -201,52 +253,39 @@ function createInput() {
     }
 
     try {
-      const data = await sendCmd(command);
-      const responseText = data.output;
+      const data = await sendCommand(command);
+      const response = data.output ?? "";
 
-      if (activeTerm) {
-        activeTerm.history.push(responseText);
+      if (terminal) {
+        terminal.history.push(response);
       }
 
-      print(responseText);
-    } catch (err) {
-      const errText = "Something went wrong in the backend" + err.message;
+      print(response);
+    } catch (error) {
+      const message = `Something went wrong in the backend: ${error.message}`;
 
-      if (activeTerm) {
-        activeTerm.history.push(errText);
+      if (terminal) {
+        terminal.history.push(message);
       }
 
-      print(errText);
+      print(message);
     }
-    input.disabled = true;
-    const oldC = inputrow.querySelector(".cursor");
 
-    if (oldC) {
-      oldC.remove();
-    }
+    cursor.remove();
+
     processing = false;
-
     createInput();
   });
 
   currentInput = input;
   input.focus();
 
-  output.scrollTop = output.scrollHeight;
+  const terminal = document.getElementById("terminal");
+
+  terminal.scrollTop = terminal.scrollHeight;
 }
 
-function updateNameTerminal() {
-  terminals.forEach((terminal, index) => {
-    terminal.name = `Shell ${index + 1}`;
+con.textContent = "Connected";
+version.textContent = "VALCON v0.1";
 
-    const tab = document.getElementById(`tab-${terminal.id}`);
-
-    if (tab) {
-      const name = tab.querySelector(".tab-name");
-      if (name) {
-        name.textContent = terminal.name;
-      }
-    }
-  });
-}
 createTerminal();
