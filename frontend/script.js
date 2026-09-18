@@ -2,7 +2,8 @@ const tabs = document.getElementById("tabs");
 const terminal = document.getElementById("terminal");
 const output = document.getElementById("output");
 const newT = document.getElementById("newTerminal");
-
+//const ID_OF_BACKEND_1 = "https://valcon-r5ti.onrender.com/json";
+const ID_OF_BACKEND_2 = "http://localhost:8080/json";
 let terminals = [];
 let processing = false;
 let activeTerminalId = null;
@@ -112,7 +113,7 @@ function closeTerminal(id) {
   }
 }
 async function sendCmd(cmd) {
-  const res = await fetch("https://valcon-r5ti.onrender.com/json", {
+  const res = await fetch(ID_OF_BACKEND_2, {
     method: "POST",
     headers: {
       "Content-Type": "text/plain",
