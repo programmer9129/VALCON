@@ -14,6 +14,8 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+backend/vcpkg_installed/
+
 # Mono auto generated files
 mono_crash.*
 
