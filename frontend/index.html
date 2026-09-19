@@ -1,29 +1,30 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>VALCON_WEB_Terminal</title>
+
     <link rel="stylesheet" href="style.css" />
   </head>
+
   <body>
-    <div id="app">
-      <div id="tabs">
-        <button id="newTerminal">+</button>
-      </div>
+    <wa-page id="app">
+      <main id="desktop">
+        <div id="wallpaper"></div>
+        <div id="dock">
+          <wa-button id="terminalApp" appearance="plain">
+            <wa-icon name="terminal"></wa-icon>
+          </wa-button>
 
-      <main id="terminal">
-        <div id="output"></div>
+          <wa-button id="settingsApp" appearance="plain">
+            <wa-icon name="gear"></wa-icon>
+          </wa-button>
+        </div>
       </main>
+    </wa-page>
 
-      <footer id="status">
-        <span id="conn">
-          <span id="connDot"></span>
-          <span id="connTxt">Backend: Connected</span>
-        </span>
-        <span id="currentShell">Initializing....</span>
-        <span id="valconVersion">Valcon v0.0001</span>
-      </footer>
-    </div>
-
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>
