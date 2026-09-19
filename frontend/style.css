@@ -37,265 +37,54 @@ body {
 
 #app,
 #app::part(base),
-#app::part(page) {
+#app::part(page),
+#app::part(main) {
   width: 100%;
   height: 100%;
-  background: var(--bg);
-}
-
-#app {
-  --header-height: 48px;
-  --footer-height: 32px;
-}
-
-#app::part(header),
-#app::part(main),
-#app::part(footer) {
   padding: 0;
-}
-
-#app::part(header),
-#app::part(main) {
   background: var(--bg);
 }
 
-#app::part(main) {
-  min-height: 0;
-}
-
-#app::part(footer) {
-  background: var(--surface);
-}
-
-#topbar {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-.brand,
-.top-actions,
-#connection,
-.status-left,
-.status-right {
-  display: flex;
-  align-items: center;
-}
-
-.brand {
-  gap: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.brand wa-icon {
-  font-size: 17px;
-}
-
-#workspace {
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: 42px minmax(0, 1fr);
-  background: var(--bg);
-}
-
-#tabs {
-  height: 42px;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-#terminalTabs {
-  height: 100%;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-#newTerminal {
-  flex-shrink: 0;
-}
-
-.tab {
-  height: 100%;
-  max-width: 160px;
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  border: 1px solid transparent;
-  border-bottom: 0;
-  background: transparent;
-  color: var(--muted);
-  font: 13px monospace;
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.tab.active {
-  color: var(--bright);
-  background: var(--surface);
-  border-color: var(--border);
-}
-
-.tab .tab-name {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.close {
-  margin-left: 8px;
-  color: #666;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.close:hover {
-  color: #fff;
-}
-
-#terminal {
+#desktop {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   background: var(--bg);
 }
 
-#output {
-  width: 100%;
-  padding: 16px;
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-.input {
-  width: 100%;
-  display: flex;
-  align-items: baseline;
-  font: inherit;
-}
-
-.prompt,
-.typed,
-.after {
-  white-space: pre;
-}
-
-.prompt {
-  color: var(--blue);
-}
-
-.typed {
-  color: var(--bright);
-}
-
-.after {
-  color: rgba(240, 246, 252, 0.5);
-}
-
-.cursor {
-  width: 8px;
-  height: 1.2em;
-  display: inline-block;
-  flex-shrink: 0;
-  vertical-align: text-bottom;
-  background: var(--blue);
-  pointer-events: none;
-  animation: blink 1s infinite;
-}
-
-.cli {
+#wallpaper {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+  inset: 1;
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(88, 166, 255, 0.06),
+      transparent 45%
+    ),
+    var(--bg);
 }
 
-#statusbar {
-  height: 32px;
-  width: 100%;
+#dock {
+  position: absolute;
+  z-index: 1000;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 12px;
+  gap: 4px;
+
+  padding: 7px;
+
+  background: rgba(22, 27, 34, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  backdrop-filter: blur(12px);
 }
 
-.status-left,
-.status-right {
-  gap: 9px;
-}
-
-#connection {
-  gap: 6px;
-}
-
-#connection wa-icon {
-  color: var(--green);
-  font-size: 8px;
-}
-
-#currentShell {
-  color: var(--muted);
-}
-
-#valconVersion {
-  opacity: 0.65;
-}
-
-.status-divider {
-  width: 1px;
-  height: 12px;
-  background: var(--border);
-}
-
-.settings-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.settings-content h3,
-.settings-content p {
-  margin: 0;
-}
-
-.settings-content p {
-  opacity: 0.7;
-}
-
-@keyframes blink {
-  0%,
-  49% {
-    opacity: 1;
-  }
-
-  50%,
-  100% {
-    opacity: 0;
-  }
+#terminalApp {
+  font-size: 20px;
 }

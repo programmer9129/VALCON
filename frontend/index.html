@@ -11,80 +11,22 @@
 
   <body>
     <wa-page id="app">
-      <header slot="header" id="topbar">
-        <div class="brand">
-          <wa-icon name="terminal" label="Valcon"></wa-icon>
-
-          <span>Valcon</span>
-        </div>
-
-        <div class="top-actions">
-          <wa-tooltip for="settingsButton"> Settings </wa-tooltip>
+      <main id="desktop">
+        <div id="wallpaper"></div>
+        <div id="dock">
+          <wa-tooltip for="terminalApp">Terminal</wa-tooltip>
 
           <wa-button
-            id="settingsButton"
+            id="terminalApp"
             appearance="plain"
             size="s"
-            aria-label="Settings"
+            aria-label="Terminal"
           >
-            <wa-icon name="gear"></wa-icon>
+            <wa-icon name="terminal"></wa-icon>
           </wa-button>
         </div>
-      </header>
-
-      <main id="workspace">
-        <div id="tabs">
-          <div id="terminalTabs"></div>
-
-          <wa-tooltip for="newTerminal"> New Terminal </wa-tooltip>
-
-          <wa-button
-            id="newTerminal"
-            appearance="plain"
-            size="s"
-            aria-label="New terminal"
-          >
-            <wa-icon name="plus"></wa-icon>
-          </wa-button>
-        </div>
-
-        <section id="terminal">
-          <div id="output"></div>
-        </section>
       </main>
-
-      <footer slot="footer" id="statusbar">
-        <div class="status-left">
-          <span id="connection">
-            <wa-icon name="circle" label="Connection status"></wa-icon>
-
-            <span id="connectionText"> Connected </span>
-          </span>
-
-          <span class="status-divider"></span>
-
-          <span id="currentShell"> Shell 1 </span>
-        </div>
-
-        <div class="status-right">
-          <span id="valconVersion"> VALCON v0.1 </span>
-
-          <span class="status-divider"></span>
-
-          <span id="clock"> --:-- </span>
-        </div>
-      </footer>
     </wa-page>
-
-    <wa-dialog id="settingsDialog" label="Valcon Settings">
-      <div class="settings-content">
-        <h3>Appearance</h3>
-
-        <p>It's dark themed</p>
-
-        <wa-button id="closeSettings"> Close </wa-button>
-      </div>
-    </wa-dialog>
 
     <script type="module" src="script.js"></script>
   </body>
