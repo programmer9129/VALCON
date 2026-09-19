@@ -3,6 +3,7 @@
 
 #include "Super_file_base.h"
 #include "crow.h"
+#include "crow/middlewares/cors.h"
 #include <string.h>
 #include <algorithm>
 #include <cstdlib>
@@ -16,7 +17,14 @@ int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here
 
 int main()
 {
-	crow::SimpleApp app;
+	crow::App<crow::CORSHandler> app;
+
+	auto& cors = app.get_middleware<crow::CORSHandler>();
+
+	cors.global()
+		.origin("*")
+		.headers("Content-Type")
+		.methods("GET"_method, "POST"_method, "OPTIONS"_method);
 
 	CROW_ROUTE(app, "/")([]
 	{
@@ -47,9 +55,6 @@ int main()
 					crow::json::wvalue response;
 					response["success"] = true;
 					auto res = crow::response(200, response);
-					res.set_header("Access-Control-Allow-Origin", "*");
-					res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-					res.set_header("Access-Control-Allow-Headers", "Content-Type");
 					return res;
 				}
 
@@ -59,7 +64,6 @@ int main()
 					response["success"] = true;
 					response["message"] = "This is a GET request";
 					auto res = crow::response(200, response);
-					res.set_header("Access-Control-Allow-Origin", "*");
 					return res;
 				}
 				auto body = crow::json::load(req.body);
@@ -71,7 +75,6 @@ int main()
 					error["error"] = "Invalid JSON";
 
 					auto res = crow::response(400, error);
-					res.set_header("Access-Control-Allow-Origin", "*");
 					return res;
 				}
 
@@ -82,7 +85,6 @@ int main()
 					error["error"] = "Missing command";
 
 					auto res = crow::response(400, error);
-					res.set_header("Access-Control-Allow-Origin", "*");
 					return res;
 				}
 
@@ -97,7 +99,6 @@ int main()
 					response["terminal"] = body["terminal"].i();
 				}
 				auto res = crow::response(response);
-				res.set_header("Access-Control-Allow-Origin", "*");
 				return res;
 			});
 	//const char* port = std::getenv("PORT");
