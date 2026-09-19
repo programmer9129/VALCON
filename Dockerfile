@@ -4,19 +4,21 @@ RUN apt-get update && apt-get install -y \
     g++ \
     cmake \
     make \
+    git \
     libboost-all-dev \
+    libasio-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 https://github.com/CrowCpp/Crow.git /opt/crow
 
 WORKDIR /app
 
 COPY . .
 
 RUN g++ -std=c++17 \
-    -Ibackend/vcpkg_installed/x64-windows/include\
+    -I/opt/crow/include \
     backend/Super_file_base.cpp \
     -o backend_app \
     -pthread
-
-EXPOSE 8080
 
 CMD ["./backend_app"]

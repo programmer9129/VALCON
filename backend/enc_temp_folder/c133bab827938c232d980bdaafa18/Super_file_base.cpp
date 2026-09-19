@@ -100,10 +100,10 @@ int main()
 				res.set_header("Access-Control-Allow-Origin", "*");
 				return res;
 			});
-	const char* port = std::getenv("PORT");
-	app.port(port ? std::stoi(port) : 8080).multithreaded().run();
+	//const char* port = std::getenv("PORT");
+	//app.port(port ? std::stoi(port) : 8080).multithreaded().run();
 
-	//app.port(8080).multithreaded().run();
+	app.port(8080).multithreaded().run();
 
 }
 string processstrings(string order_commands)

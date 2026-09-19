@@ -1,6 +1,6 @@
 import "./terminal.css";
 
-const backend = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/jsonRequest`;
+const backend = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/json`;
 
 export function startTerminal(root) {
   root.innerHTML = `
@@ -11,6 +11,10 @@ export function startTerminal(root) {
 
   const terminal = root.querySelector(".terminal");
   const output = root.querySelector(".output");
+
+  terminal.addEventListener("click", () => {
+    terminal.querySelector(".cli")?.focus();
+  });
 
   let processing = false;
 
@@ -42,11 +46,9 @@ export function startTerminal(root) {
   async function sendCommand(command) {
     const response = await fetch(backend, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
-        input: command,
+        command: command,
+        terminal: 1,
       }),
     });
 
