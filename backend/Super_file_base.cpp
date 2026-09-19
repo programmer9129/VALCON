@@ -33,7 +33,7 @@ int main()
 	{
 		return "Hello, World!";
 	});
-	CROW_ROUTE(app, "/health_bridge")
+	CROW_ROUTE(app, "/server_bridge")
 	([] {
 
 		crow::json::wvalue response;
@@ -92,8 +92,8 @@ int main()
 				}
 
 				std::string command = body["command"].s();
-				crow::json::wvalue response;
 				std::string result = processstrings(command);
+				crow::json::wvalue response;
 				response["success"] = true;
 				response["output"] = "   " + result;
 
