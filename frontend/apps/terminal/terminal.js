@@ -1,6 +1,6 @@
 import "./terminal.css";
 
-const backend = "http://localhost:8080/jsonRequest";
+const backend = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/jsonRequest`;
 
 export function startTerminal(root) {
   root.innerHTML = `
