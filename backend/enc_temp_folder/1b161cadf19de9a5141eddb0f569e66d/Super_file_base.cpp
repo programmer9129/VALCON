@@ -3,20 +3,134 @@
 
 #include "Super_file_base.h"
 #include "crow.h"
+#include "crow/middlewares/cors.h"
 #include <string.h>
 #include <algorithm>
 #include <cstdlib>
 #include <vector>
 #include <cmath>
+#include <curl/curl.h>
 
 using namespace std;
 string processstrings(string order_commands);
 string CALCULATOR(string calc_command);
 int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
 
+//this code is been made for bridge request HAZARD! do not touch this function in any matterr
+// this can delete the whole thing i mean the whole database 
+string BRIDGERequest(
+	const stirng& method,
+	const string& filename,
+	const string& content = ""
+)
+{
+	CURL* curl = curl_easy_init();
+
+	if (!curl)
+		return "CURL initialization failed";
+
+	string response;
+
+	string url = "https://valcon-1.onrender.com/server_bridge/files/" + method;
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+	struct curl_slist* header = nullptr;
+	headers = curl_slist_append(
+		headers,
+		"Content-Type: plain/text"
+	);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	string.json =
+		"{\"filename\""\"" + filename + "\"";
+
+	if (!content.empty())
+	{
+		json += ",\"content\":\"";
+		for (char c : content)
+		{
+			if (c == '"')
+			{
+				json += "\\\"";
+			}
+			else if (c == '\\')
+			{
+				json += "\\\\";
+			}
+			else if (c == '\n')
+			{
+				json += "\\n";
+			}
+			else
+			{
+				json += c;
+			}
+		}json += "\"";
+	}
+	json += "}";
+
+	if (method == "create" || method == "write")
+	{
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+
+	}
+	else if (method == "read")
+	{
+		stirng readURL =
+			"https://valcon-1.onrender.com/server_bridge/files/read/" + filename;
+
+		curl_easy_setopt(curl, CURLOPT_URL, readUrl.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+
+	}
+	else if (method == "delete")
+	{
+		string deleteUrl = "https://valcon-1.onrender.com/server_bridge/files/delete/" + filename;
+
+		curl_easy_setopt(curl, CURLOPT_URL, readUrl.c_str());
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+	}
+	
+	curl_easy_setopt(
+		curl,
+		CURLOPT_WRITEFUNCTION,
+		[](char* data, size_t size, size_t count.void* user)
+		{
+			string* result = static_cast<string*>(user);
+
+			result->append(data, size * count);
+
+			return size * count;
+		}
+	);
+
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+	curl_slist result = curl_easy_perform(curl);
+
+	if (result != CURLE_OK)
+	{
+		response =
+			"Bridge error:" + string(curl_easy_strerror(result));
+	}
+
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+
+	return response;
+
+}// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
+
 int main()
 {
-	crow::SimpleApp app;
+	crow::App<crow::CORSHandler> app;
+
+	auto& cors = app.get_middleware<crow::CORSHandler>();
+
+	cors.global()
+		.origin("*")
+		.headers("Content-Type")
+		.methods("GET"_method, "POST"_method, "OPTIONS"_method);
 
 	CROW_ROUTE(app, "/")([]
 	{
@@ -47,9 +161,6 @@ int main()
 					crow::json::wvalue response;
 					response["success"] = true;
 					auto res = crow::response(200, response);
-					res.set_header("Access-Control-Allow-Origin", "*");
-					res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-					res.set_header("Access-Control-Allow-Headers", "Content-Type");
 					return res;
 				}
 
@@ -59,7 +170,6 @@ int main()
 					response["success"] = true;
 					response["message"] = "This is a GET request";
 					auto res = crow::response(200, response);
-					res.set_header("Access-Control-Allow-Origin", "*");
 					return res;
 				}
 				auto body = crow::json::load(req.body);
@@ -71,7 +181,6 @@ int main()
 					error["error"] = "Invalid JSON";
 
 					auto res = crow::response(400, error);
-					res.set_header("Access-Control-Allow-Origin", "*");
 					return res;
 				}
 
@@ -82,7 +191,6 @@ int main()
 					error["error"] = "Missing command";
 
 					auto res = crow::response(400, error);
-					res.set_header("Access-Control-Allow-Origin", "*");
 					return res;
 				}
 
@@ -97,13 +205,12 @@ int main()
 					response["terminal"] = body["terminal"].i();
 				}
 				auto res = crow::response(response);
-				res.set_header("Access-Control-Allow-Origin", "*");
 				return res;
 			});
-	//const char* port = std::getenv("PORT");
-	//app.port(port ? std::stoi(port) : 8080).multithreaded().run();
+	const char* port = std::getenv("PORT");
+	app.port(port ? std::stoi(port) : 8080).multithreaded().run();
 
-	app.port(8080).multithreaded().run();
+	//app.port(8080).multithreaded().run();
 
 }
 string processstrings(string order_commands)
@@ -142,10 +249,11 @@ string processstrings(string order_commands)
 			{
 				access_desk = false;
 			}
-			std::string echo_string = order_commands.substr(4);
+			std::string echo_string = order_commands;
 			return echo_string;
 		}
 	}
+	if (order_commands.rfind("file create", 0) == 0)
 	else {
 		return "no command found";
 	}
@@ -200,6 +308,7 @@ string CALCULATOR(string calc_command)
 		{
 			sum_answer = sum_answer - unified_number_set[x];
 		}
+		else if 
 		x++;
 	}
 	return std::to_string(sum_answer);

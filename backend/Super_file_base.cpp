@@ -9,11 +9,14 @@
 #include <cstdlib>
 #include <vector>
 #include <cmath>
+#include <curl/curl.h>
 
 using namespace std;
-string processstrings(string order_commands);
-string CALCULATOR(string calc_command);
+string processstrings(string order_commands);//command engine here
+string CALCULATOR(string calc_command);//calcualtor here
 int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
+string BRIDGERequest(const stirng& method, const string& filename, const string& content = "");//bridge to supabase here 
+
 
 int main()
 {
@@ -101,15 +104,16 @@ int main()
 				auto res = crow::response(response);
 				return res;
 			});
-	//const char* port = std::getenv("PORT");
-	//app.port(port ? std::stoi(port) : 8080).multithreaded().run();
+	const char* port = std::getenv("PORT");
+	app.port(port ? std::stoi(port) : 8080).multithreaded().run();
 
-	app.port(8080).multithreaded().run();
+	//app.port(8080).multithreaded().run();
 
 }
 string processstrings(string order_commands)
 {
 	size_t search_calculate = order_commands.find("calculate");
+	auto ichy_file_nameworks = order_commands;
 	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
 	if (order_commands == "help")
 	{
@@ -118,15 +122,17 @@ string processstrings(string order_commands)
 			" calculate {your calculation input} --> Calculate The Calculation Input. \n"
 			" start echo --> echo what the USER says. \n"
 			" introduce yourself --> Introduce itself to USER.\n"
-			" folder open {name of the folder} --> open the folder USER want. \n"
-			" file open {name of the file} --> open the file USER want. \n "
-			" Valcon Show directory sequence --> the comand show the directory sequence of files nad folders. \n";
+			" file create : {name of the file}.txt --> open the file USER want. \n "
+			" file write : {name of the file}.txt {context of the file} --> write the txt context into the file you gave";
 	}
 	if (order_commands == "introduceyourself")
 	{
 		return
 			" Hi!, I am Valcon .A Web CLI Application, I can do much things. \n"
-			" to be continued \n";
+			"I am still Under devolopment please don't mind... :) ."
+			"My creators are trying to make me improved and better. ;)"
+			"btw nice to meet YOU!.\n"
+			"What can I do for you now ? :D .";
 	}
 	if (search_calculate != std::string::npos)
 	{
@@ -136,21 +142,185 @@ string processstrings(string order_commands)
 	}
 	if (order_commands == "startecho")
 	{
+		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) .";
+		order_command.clear();
 		bool access_desk = true;
 		while (access_desk)
 		{
-			if (order_commands == "stopecho")
+			std::string NEW_ECHO_HAPPY = body["command"].s();
+			if (NEW_ECHO_HAPPY == "stopecho")
 			{
 				access_desk = false;
 			}
-			std::string echo_string = order_commands.substr(4);
+			std::string echo_string = NEW_ECHO_HAPPY;
 			return echo_string;
 		}
 	}
+	if (ichy_file_nameworks.rfind("file create : ", 0) == 0)
+	{
+		string ichyname = ichy_file_nameworks.substr(13);
+		if (ichyname.find(".txt") == string::npos)
+		{
+			ichyname += ".txt";
+
+			return BRIDGERequest("create", ichyname);
+		}
+		else {
+			return "Sorry! USER, That feature is still under devolopment,\n"
+				"   we are already researching on that ,hope next time if,\n"
+				"   no massacare or difficulties happens YOU will see your needed feature here .";
+		}
+	}
+	if (ichy_file_nameworks.rfind("file write : ", 0) == 0)
+	{
+		string data = ichy_file_nameworks.substr(13);
+		size_t space = data.find(' ');
+
+		if (space == string::npos)
+		{
+			return "OHHH! USE THIS FORMAT PLEASE {^-^}file write : <FILENAME> <CONTENT> ";
+		}
+
+		string NAME_OF_THE_FILES = data.substr(0, space);
+		string CONTENT_OF_THE_FILE = data.substr(space + 1);
+
+		if (filename.find(".txt") == string::npos)
+		{
+			NAME_OF_THE_FILES += ".txt";
+		}
+		return BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
+	}
+	if (ichy_files_nameworks.rfind("file read : ", 0)==0)
+	{
+		string ichyname = ichy_file_nameworks.substr(12);
+
+		if (ichyname.find(".txt") == string::npos)
+		{
+			ichyname += ".txt";
+		}
+		return BRIDGERequest("read", ichyname);
+	}
+	if (ichy_files_nameworks.rfind("file delete : ",0) == 0)
+	{
+		string ichyname = ichy_file_nameworks.substr(12);
+
+		if (ichyname.find(".txt") == string::npos)
+		{
+			 ichyname += ".txt";
+		}
+
+		return BRIDGERequest("delete", ichyname);
+	}
+
 	else {
-		return "no command found";
+		return "no command found :(";
 	}
 }
+//this code is been made for bridge request HAZARD! do not touch this function in any matterr
+// this can delete the whole thing i mean the whole database...
+//althou there is no auto database cleanup so, we need to manualy clear our database :) 
+//@GuruOrGoru please dont change this thing up in any matter...
+string BRIDGERequest(
+	const stirng& method,
+	const string& filename,
+	const string& content = "")
+{
+	CURL* curl = curl_easy_init();
+
+	if (!curl)
+		return "CURL initialization failed";
+
+	string response;
+
+	string url = "https://valcon-1.onrender.com/server_bridge/files/" + method;
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+	struct curl_slist* header = nullptr;
+	headers = curl_slist_append(
+		headers,
+		"Content-Type: plain/text"
+	);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	string.json =
+		"{\"filename\""\"" + filename + "\"";
+
+	if (!content.empty())
+	{
+		json += ",\"content\":\"";
+		for (char c : content)
+		{
+			if (c == '"')
+			{
+				json += "\\\"";
+			}
+			else if (c == '\\')
+			{
+				json += "\\\\";
+			}
+			else if (c == '\n')
+			{
+				json += "\\n";
+			}
+			else
+			{
+				json += c;
+			}
+		}json += "\"";
+	}
+	json += "}";
+
+	if (method == "create" || method == "write")
+	{
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+
+	}
+	else if (method == "read")
+	{
+		stirng readURL = "https://valcon-1.onrender.com/server_bridge/files/read/" + filename;
+
+		curl_easy_setopt(curl, CURLOPT_URL, readUrl.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+
+	}
+	else if (method == "delete")
+	{
+		string deleteUrl = "https://valcon-1.onrender.com/server_bridge/files/delete/" + filename;
+
+		curl_easy_setopt(curl, CURLOPT_URL, readUrl.c_str());
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+	}
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_WRITEFUNCTION,
+		[](char* data, size_t size, size_t count.void* user)
+		{
+			string* result = static_cast<string*>(user);
+
+			result->append(data, size * count);
+
+			return size * count;
+		}
+	);
+
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+	curl_slist result = curl_easy_perform(curl);
+
+	if (result != CURLE_OK)
+	{
+		response =
+			"Bridge error:" + string(curl_easy_strerror(result));
+	}
+
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+
+	return response;
+
+}// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
+
 string CALCULATOR(string calc_command)
 {
 	//we need to implement calculate logics here to make sure the calculator works
@@ -160,9 +330,13 @@ string CALCULATOR(string calc_command)
 	std::vector<int>numbers;
 	std::vector<int>unified_number_set;
 	std::vector<char>operator_set;
-	std::vector<std::string>operators = { "+", "-","=" };
+	std::vector<std::string>operators = { "+", "-","*",'/','='};
 	int number = 0;
 	int sum_answer = 0;
+	if (super_varie.find("=") == string::npos)
+	{
+		return "ERROR! GIVE THE EQUAL AT THE LAST :( ."
+	}
 	for (int i = 0; i <= super_varie.length(); i++)
 	{
 		if (isdigit(super_varie[i]))
@@ -198,6 +372,14 @@ string CALCULATOR(string calc_command)
 			sum_answer = sum_answer + unified_number_set[x];
 		}
 		else if (y == '-')
+		{
+			sum_answer = sum_answer - unified_number_set[x];
+		}
+		else if (y == '*')
+		{
+			sum_answer = sum_answer - unified_number_set[x];
+		}
+		else if (y == '+')
 		{
 			sum_answer = sum_answer - unified_number_set[x];
 		}

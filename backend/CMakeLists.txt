@@ -24,4 +24,5 @@ add_executable(ValconBackend ${VALCON_SOURCES})
 target_link_libraries(ValconBackend
     PRIVATE
     Crow::Crow
+    CURL::libcurl
 )

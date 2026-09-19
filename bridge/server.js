@@ -3,16 +3,14 @@ require("dotenv").config();
 const express = require("express");
 const {createClient} = require("@supabase/supabase-js");
 
-const ID_BACKEND_ADRESS = "http://localhost:8080/server_bridge";
+const ID_BACKEND_ADRESS = "https://valcon-r5ti.onrender.com/health_bridge";
 //const ID_BACKEND_ADRESS_LIVE =
 const app = express();
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY);
 
-
-const PORT = 3000;
-const BACKEND_URL_TRUE = "http://localhost:8080";
+const PORT = process.env.PORT || 3000;//dont change this varieable
 
 app.use(express.json());
 
