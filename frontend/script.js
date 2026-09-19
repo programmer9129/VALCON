@@ -3,17 +3,14 @@ import "@awesome.me/webawesome/dist/components/page/page.js";
 import "@awesome.me/webawesome/dist/components/icon/icon.js";
 import "@awesome.me/webawesome/dist/components/button/button.js";
 import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
-
 import { AppManager } from "./app-manager.js";
 import { startTerminal } from "./apps/terminal/terminal.js";
 import { startSettings } from "./apps/settings/settings.js";
-
 import "./apps/terminal/terminal.css";
 import "./apps/settings/settings.css";
 
 const terminalApp = document.getElementById("terminalApp");
 const settingsApp = document.getElementById("settingsApp");
-
 const apps = new AppManager();
 const dock = document.getElementById("dock");
 const savedWallpaper = localStorage.getItem("wallpaper");
@@ -22,6 +19,7 @@ if (savedWallpaper) {
   document.getElementById("wallpaper").style.backgroundImage =
     `linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url("${savedWallpaper}")`;
 }
+
 let dockHidden = false;
 
 apps.register({
@@ -33,7 +31,6 @@ apps.register({
   single: true,
   start: startTerminal,
 });
-
 apps.register({
   id: "settings",
   title: "Settings",
@@ -47,7 +44,6 @@ apps.register({
 terminalApp.addEventListener("click", () => {
   apps.open("terminal");
 });
-
 settingsApp.addEventListener("click", () => {
   apps.open("settings");
 });
@@ -56,7 +52,6 @@ function toggleDock() {
   dockHidden = !dockHidden;
   dock.classList.toggle("hidden", dockHidden);
 }
-
 function getShortcut(event) {
   const keys = [];
 
@@ -70,7 +65,6 @@ function getShortcut(event) {
   }
   return keys.join(" + ");
 }
-
 function matchesShortcut(event) {
   const saved = localStorage.getItem("dock-shortcut") || "Super + D";
   return getShortcut(event) === saved;
