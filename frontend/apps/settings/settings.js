@@ -1,10 +1,23 @@
+import "@awesome.me/webawesome/dist/styles/webawesome.css";
+import "@awesome.me/webawesome/dist/components/page/page.js";
+import "@awesome.me/webawesome/dist/components/icon/icon.js";
+import "@awesome.me/webawesome/dist/components/button/button.js";
+import "@awesome.me/webawesome/dist/components/select/select.js";
+import "@awesome.me/webawesome/dist/components/option/option.js";
+import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
+
 export function startSettings(win) {
   const tabs = win.querySelectorAll(".settings-tab");
   const sections = win.querySelectorAll(".settings-section");
+
   const theme = win.querySelector("#terminalTheme");
+
   const wallInput = win.querySelector("#wallInput");
   const wallButton = win.querySelector("#wallButton");
   const wallStatus = win.querySelector("#wallStatus");
+  const wallPreview = win.querySelector("#wallPreview");
+
+  const dockShortcut = win.querySelector("#dockShortcut");
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -20,6 +33,12 @@ export function startSettings(win) {
     });
   });
 
+  const savedTheme = localStorage.getItem("terminal-theme");
+
+  if (savedTheme) {
+    theme.value = savedTheme;
+  }
+
   theme.addEventListener("change", () => {
     localStorage.setItem("terminal-theme", theme.value);
 
@@ -30,49 +49,93 @@ export function startSettings(win) {
     );
   });
 
+  function setWallpaper(wallpaper) {
+    const desktopWallpaper = document.getElementById("wallpaper");
+
+    desktopWallpaper.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url("${wallpaper}")`;
+
+    wallPreview.innerHTML = "";
+
+    const image = document.createElement("img");
+
+    image.src = wallpaper;
+    image.alt = "Wallpaper preview";
+
+    wallPreview.appendChild(image);
+  }
+
   wallButton.addEventListener("click", () => {
     wallInput.click();
   });
 
-  wallInput.addEventListener("change", async () => {
+  wallInput.addEventListener("change", () => {
     const file = wallInput.files[0];
 
     if (!file) return;
 
-    wallStatus.textContent = "Uploading...";
+    const reader = new FileReader();
 
-    const form = new FormData();
-    form.append("wallpaper", file);
+    wallStatus.textContent = "Loading...";
 
-    try {
-      const response = await fetch("/wallpaper", {
-        method: "POST",
-        body: form,
-      });
+    reader.onload = () => {
+      const wallpaper = reader.result;
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
+      try {
+        localStorage.setItem("wallpaper", wallpaper);
+        setWallpaper(wallpaper);
+
+        wallStatus.textContent = "Wallpaper updated";
+      } catch {
+        wallStatus.textContent = "Image is too large to store";
       }
+    };
 
-      const result = await response.json();
+    reader.onerror = () => {
+      wallStatus.textContent = "Cannot load wallpaper";
+    };
 
-      if (!result.success) {
-        throw new Error("Backend rejected wallpaper");
-      }
-
-      document.getElementById("wallpaper").style.backgroundImage =
-        `url("${result.url}")`;
-
-      localStorage.setItem("wallpaper", result.url);
-      wallStatus.textContent = "Wallpaper updated";
-    } catch {
-      wallStatus.textContent = "Cannot update wallpaper";
-    }
+    reader.readAsDataURL(file);
   });
 
-  const savedTheme = localStorage.getItem("terminal-theme");
+  const savedShortcut = localStorage.getItem("dock-shortcut");
 
-  if (savedTheme) {
-    theme.value = savedTheme;
+  if (savedShortcut) {
+    dockShortcut.textContent = savedShortcut;
   }
+
+  dockShortcut.addEventListener("click", () => {
+    dockShortcut.textContent = "Press keys...";
+
+    const handleKey = (event) => {
+      event.preventDefault();
+
+      const keys = [];
+
+      if (event.metaKey) keys.push("Super");
+      if (event.ctrlKey) keys.push("Ctrl");
+      if (event.altKey) keys.push("Alt");
+      if (event.shiftKey) keys.push("Shift");
+
+      if (!["Meta", "Control", "Alt", "Shift"].includes(event.key)) {
+        keys.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
+      }
+
+      if (keys.length < 2) return;
+
+      const shortcut = keys.join(" + ");
+
+      localStorage.setItem("dock-shortcut", shortcut);
+      dockShortcut.textContent = shortcut;
+
+      window.dispatchEvent(
+        new CustomEvent("dock-shortcut-change", {
+          detail: shortcut,
+        }),
+      );
+
+      window.removeEventListener("keydown", handleKey);
+    };
+
+    window.addEventListener("keydown", handleKey);
+  });
 }

@@ -1,15 +1,18 @@
 <div class="settings">
   <div class="settings-sidebar">
-    <button class="settings-tab active" data-section="apearance">
-      <wa-icon name="paintbrush">Appearance</wa-icon>
+    <button class="settings-tab active" data-section="appearance">
+      <wa-icon name="paintbrush"></wa-icon>
+      <span>Appearance</span>
     </button>
+
     <button class="settings-tab" data-section="keyboard">
-      <wa-icon name="keyboard">Keyboard</wa-icon>
+      <wa-icon name="keyboard"></wa-icon>
+      <span>Keyboard</span>
     </button>
   </div>
 
   <div class="settings-content">
-    <section id="apearance" class="settings-section active">
+    <section id="appearance" class="settings-section active">
       <h1>Appearance</h1>
 
       <div class="setting">
@@ -24,31 +27,45 @@
         </wa-select>
       </div>
 
-      <div class="setting">
-        <div>
-          <h2>Desktop wallpaper</h2>
-          <p>Upload an image for the wallpaper</p>
+      <div class="setting wallpaper-setting">
+        <div class="setting-info">
+          <h2>Desktop Wallpaper</h2>
+          <p>Choose an image to use as your wallpaper.</p>
         </div>
-        <input id="wallInput" accept="image/*" hidden type="file" />
 
-        <wa-button id="wallButton" apearance="outlined">Choose Image</wa-button>
+        <div class="wallpaper-controls">
+          <input id="wallInput" type="file" accept="image/*" hidden />
+
+          <wa-button id="wallButton" appearance="outlined">
+            Choose Image
+          </wa-button>
+
+          <span id="wallFileName">No image selected</span>
+        </div>
+
+        <div id="wallStatus"></div>
+
+        <div id="wallPreview">
+          <span>No wallpaper selected</span>
+        </div>
       </div>
-
-      <div id="wallStatus"></div>
     </section>
 
     <section id="keyboard" class="settings-section">
       <h1>Keyboard</h1>
+
       <div class="setting">
         <div>
           <h2>For Dock Toggle</h2>
           <p>
-            Your keyboard shortcut for hiding or showing the dock(needed if
-            Super D is mapped with something else in your pc)
+            Your keyboard shortcut for hiding or showing the dock (needed if
+            Super + D is mapped with something else on your PC)
           </p>
         </div>
 
-        <wa-button id="dockShortcut" apearance="outlined">Super + D</wa-button>
+        <wa-button id="dockShortcut" appearance="outlined">
+          Super + D
+        </wa-button>
       </div>
     </section>
   </div>

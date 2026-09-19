@@ -14,6 +14,17 @@ export function startTerminal(root) {
 
   let processing = false;
 
+  function setTheme(theme) {
+    terminal.classList.toggle("light", theme === "light");
+  }
+  const savedTheme = localStorage.getItem("terminal-theme" || "dark");
+
+  setTheme(savedTheme);
+
+  window.addEventListener("terminal-theme-change", (event) => {
+    setTheme(event.detail);
+  });
+
   function scroll() {
     terminal.scrollTop = terminal.scrollHeight;
   }
