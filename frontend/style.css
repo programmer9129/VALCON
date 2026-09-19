@@ -14,12 +14,20 @@
 
   --wa-font-family-body: monospace;
   --wa-font-family-heading: monospace;
+
   --wa-color-brand-fill-normal: var(--blue);
   --wa-color-neutral-fill-normal: var(--surface);
   --wa-color-neutral-border-quiet: var(--border);
   --wa-color-neutral-on-quiet: var(--muted);
   --wa-color-neutral-10: var(--bright);
   --wa-color-success-fill-normal: var(--green);
+
+  --wa-tooltip-background-color: #000;
+  --wa-tooltip-content-color: #fff;
+  --wa-tooltip-border-color: #000;
+  --wa-tooltip-border-radius: 6px;
+  --wa-tooltip-font-size: 13px;
+
   --wa-border-radius-scale: 0.6;
   --wa-space-scale: 0.9;
 }
@@ -55,36 +63,101 @@ body {
 
 #wallpaper {
   position: absolute;
-  inset: 1;
+  inset: 0;
   background:
-    radial-gradient(
-      circle at 50% 40%,
-      rgba(88, 166, 255, 0.06),
-      transparent 45%
-    ),
-    var(--bg);
+    linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)),
+    url("./assets/background.jpg") center / cover no-repeat;
 }
 
 #dock {
   position: absolute;
   z-index: 1000;
   left: 50%;
-  bottom: 18px;
+  bottom: 14px;
   transform: translateX(-50%);
 
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: flex-end;
+  gap: 7px;
 
-  padding: 7px;
+  padding: 7px 9px;
 
-  background: rgba(22, 27, 34, 0.92);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: rgba(35, 35, 38, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
 
-  backdrop-filter: blur(12px);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
-#terminalApp {
-  font-size: 20px;
+#dock wa-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  color: #f5f5f7;
+
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+#dock wa-button:hover {
+  transform: translateY(-6px) scale(1.12);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#dock wa-button:active {
+  transform: translateY(-3px) scale(1.05);
+}
+
+#dock wa-icon {
+  font-size: 22px;
+}
+
+.winbox {
+  border-radius: 12px !important;
+  overflow: hidden;
+  background: rgba(30, 30, 30, 0.92) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
+}
+
+.winbox .wb-title {
+  background: rgba(45, 45, 45, 0.88) !important;
+  color: #f5f5f7 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.winbox .wb-header {
+  height: 38px !important;
+  background: rgba(35, 35, 35, 0.82) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.winbox .wb-icon {
+  color: #f5f5f7 !important;
+}
+
+.winbox .wb-control {
+  color: #b8b8b8 !important;
+}
+
+.winbox .wb-control:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+.winbox .wb-title {
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
 }

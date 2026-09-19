@@ -1,12 +1,29 @@
 .terminal {
   width: 100%;
   height: 100%;
-  padding: 16px;
+  padding: 18px 20px;
   overflow-y: auto;
-  background: #0d1117;
-  color: #c9d1d9;
-  font: 15px monospace;
-  line-height: 1.45;
+  overflow-x: hidden;
+  background: #0b0e14;
+  color: #d8dee9;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: #303642 transparent;
+}
+
+.terminal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal::-webkit-scrollbar-thumb {
+  background: #303642;
+  border-radius: 4px;
 }
 
 .output {
@@ -15,4 +32,57 @@
 
 .input {
   width: 100%;
+  display: flex;
+  align-items: baseline;
+}
+
+.prompt,
+.typed,
+.after {
+  white-space: pre;
+}
+
+.prompt {
+  color: #1793d1;
+  font-weight: 600;
+}
+
+.typed {
+  color: #e5e9f0;
+}
+
+.after {
+  color: #6b7280;
+}
+
+.cursor {
+  width: 8px;
+  height: 1.2em;
+  margin-left: 1px;
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: text-bottom;
+  background: #1793d1;
+  pointer-events: none;
+  animation: blink 1s steps(1) infinite;
+}
+
+.cli {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
