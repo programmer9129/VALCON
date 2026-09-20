@@ -184,13 +184,12 @@ string processstrings(string order_commands)
 		{
 			ichyname += ".txt";
 
-			string SUPER_PARSER = BRIDGERequest("create", ichyname);
-			return "file:" + ichyname + " has been created";
+			return BRIDGERequest("create", ichyname);
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
-			string SUPER_PARSER = BRIDGERequest("create", ichyname);
-			return "file:" + ichyname + " has been created";
+			return BRIDGERequest("create", ichyname);
+			
 		}
 		else
 		{
@@ -216,8 +215,8 @@ string processstrings(string order_commands)
 		{
 			NAME_OF_THE_FILES += ".txt";
 		}
-		string SUPER_PARSER = BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
-		return "file:" + NAME_OF_THE_FILES + " been updated...";
+		return BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
+		
 	}
 	if (ichy_file_nameworks.rfind("rdfile : ", 0)==0)
 	{
@@ -236,9 +235,7 @@ string processstrings(string order_commands)
 			if (content_end != string::npos)
 			{
 				return result_of_read.substr(content_start, content_end - content_start);
-
 			}
-		
 		}
 		return "READ FAILED :(";
 		
@@ -251,8 +248,8 @@ string processstrings(string order_commands)
 		{
 			 ichyname += ".txt";
 		}
-		string SUPER_PARSER = BRIDGERequest("delete", ichyname);
-		return "file deleted";
+		return BRIDGERequest("delete", ichyname);
+		
 	}
 	if (ichy_file_nameworks.rfind("lsfile", 0) == 0)//LIST CODE
 	{
@@ -428,8 +425,22 @@ string BRIDGERequest(
 
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
-
-	return response;
+	if (method == "write")
+	{
+		return "file: " + filename + " been updated...";
+	}
+	if (method == "create")
+	{
+		return "file: " + filename + " has been created";
+	}
+	if (method == "deleted")
+	{
+		return "file: " + filename + " is deleted ";
+	}
+	else {
+		return response;
+	}
+	
 
 }// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
 //we need to implement calculate logics here to make sure the calculator works
