@@ -385,11 +385,11 @@ string CALCULATOR(string calc_command)
 		}
 		else if (y == '*')
 		{
-			sum_answer = sum_answer - unified_number_set[x];
+			sum_answer = sum_answer * unified_number_set[x];
 		}
-		else if (y == '+')
+		else if (y == '/')
 		{
-			sum_answer = sum_answer - unified_number_set[x];
+			sum_answer = sum_answer / unified_number_set[x];
 		}
 		x++;
 	}
