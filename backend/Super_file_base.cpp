@@ -254,7 +254,7 @@ string BRIDGERequest(
 	struct curl_slist* headers = nullptr;
 	headers = curl_slist_append(
 		headers,
-		"Content-Type: plain/text"
+		"Content-Type: application/json"
 	);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	string json ="{\"filename\":\"" + filename + "\"";
