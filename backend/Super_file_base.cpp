@@ -314,7 +314,7 @@ string BRIDGERequest(
 	);
 
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-	CURLCode result = curl_easy_perform(curl);
+	CURLcode result = curl_easy_perform(curl);
 
 	if (result != CURLE_OK)
 	{
