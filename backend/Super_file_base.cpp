@@ -234,7 +234,7 @@ string processstrings(string order_commands)
 			size_t content_end = result_of_read_read.find("\"", content_start);
 			if (content_end != string::npos)
 			{
-				return result_of_read.substr(content_start, content_end - sontent_start);
+				return result_of_read.substr(content_start, content_end - content_start);
 
 			}
 		
