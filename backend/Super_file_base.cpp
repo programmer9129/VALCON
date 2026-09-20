@@ -285,6 +285,11 @@ string processstrings(string order_commands)
 				break;
 
 			string filename = result_of_list.substr(name_start,name_end - name_start);
+			if (filename == ".emptyFolderPlaceholder")
+			{
+				position = name_end + 1;
+				continue;
+			}
 			file_count++;
 
 			furnished_list += "  " + to_string(file_count) + ". " + filename + "\n";
