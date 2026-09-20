@@ -148,9 +148,10 @@ string processstrings(string order_commands)
 	{
 		return
 			" introduce yourself --> Introduce itself to USER.\n"
+			" who am i --> says who are you to VALCON \n"
 			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4=' \n"
 			" echo --> echo what the USER says. \n"			
-			" mkfile : {name of the file}.txt --> open the file USER want. \n "
+			" mkfile : {name of the file}.txt --> create the file USER want. \n "
 			" wrtfile : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
 			" rdfile : {name of the file}.txt --> the terminal will show you what in written in the file \n"
 			" deltfile : {name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
