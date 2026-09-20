@@ -20,6 +20,7 @@ RUN g++ -std=c++17 \
     -I/opt/crow/include \
     backend/Super_file_base.cpp \
     -o backend_app \
+    -lcurl \
     -pthread
 
 CMD ["./backend_app"]

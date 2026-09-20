@@ -238,7 +238,7 @@ string processstrings(string order_commands)
 string BRIDGERequest(
 	const string& method,
 	const string& filename,
-	const string& content = "")
+	const string& content)
 {
 	CURL* curl = curl_easy_init();
 
@@ -250,14 +250,13 @@ string BRIDGERequest(
 	string url = "https://valcon-1.onrender.com/server_bridge/files/" + method;
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
-	struct curl_slist* header = nullptr;
+	struct curl_slist* headers = nullptr;
 	headers = curl_slist_append(
 		headers,
 		"Content-Type: plain/text"
 	);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	string json =
-		"{\"filename\""\"" + filename + "\"";
+	string json ="{\"filename\":\"" + filename + "\"";
 
 	if (!content.empty())
 	{
