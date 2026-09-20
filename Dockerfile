@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     git \
     libboost-all-dev \
     libasio-dev \
-    libcur14-openssl-dev \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth 1 https://github.com/CrowCpp/Crow.git /opt/crow
