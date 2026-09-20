@@ -119,7 +119,7 @@ string processstrings(string order_commands)
 	{
 		return
 			" who am i --> Says who are You. \n"
-			" calculate {your calculation input} --> Calculate The Calculation Input. \n"
+			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4'. \n"
 			" start echo --> echo what the USER says. \n"
 			" introduce yourself --> Introduce itself to USER.\n"
 			" file create : {name of the file}.txt --> open the file USER want. \n "
@@ -338,7 +338,7 @@ string CALCULATOR(string calc_command)
 	std::vector<int>numbers;
 	std::vector<int>unified_number_set;
 	std::vector<char>operator_set;
-	std::vector<std::string>operators = { "+", "-","*",'/','='};
+	std::vector<std::string>operators = { "+", "-","*","/"};
 	int number = 0;
 	int sum_answer = 0;
 	if (super_varie.find("=") == string::npos)
