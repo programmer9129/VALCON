@@ -235,7 +235,7 @@ string processstrings(string order_commands)
 				return READING_FILE["content"].get<string>();
 			}
 
-			return "READ FAILED :(" + READING+FILE.value("error", "UNKNOWN");
+			return "READ FAILED :(" + READING_FILE.value("error", "UNKNOWN");
 		}
 		catch (...)
 		{
