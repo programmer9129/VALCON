@@ -229,7 +229,7 @@ string processstrings(string order_commands)
 		std::string result_of_read = BRIDGERequest("read", ichyname);
 		try
 		{
-			json READING_FILE = json::parse(result);
+			crow::json READING_FILE = json::parse(result_of_read);
 			if (READING_FILE["success"] == true)
 			{
 				return READING_FILE["content"].get<string>();
