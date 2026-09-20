@@ -15,7 +15,7 @@ using namespace std;
 string processstrings(string order_commands);//command engine here
 string CALCULATOR(string calc_command);//calcualtor here
 int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
-string BRIDGERequest(const stirng& method, const string& filename, const string& content = "");//bridge to supabase here 
+string BRIDGERequest(const string& method, const string& filename, const string& content = "");//bridge to supabase here 
 
 
 int main()
@@ -115,6 +115,7 @@ string processstrings(string order_commands)
 	size_t search_calculate = order_commands.find("calculate");
 	auto ichy_file_nameworks = order_commands;
 	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
+	bool echo_mode = false;
 	if (order_commands == "help")
 	{
 		return
@@ -150,19 +151,25 @@ string processstrings(string order_commands)
 	}
 	if (order_commands == "startecho")
 	{
-		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) .";
-		order_command.clear();
-		bool access_desk = true;
-		while (access_desk)
+		echo_mode = true;
+		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'stop echo' to stop echoing.";
+	}
+
+	if (order_commands == "stopecho")
+	{
+		if (echo_mode)
 		{
-			std::string NEW_ECHO_HAPPY = body["command"].s();
-			if (NEW_ECHO_HAPPY == "stopecho")
-			{
-				access_desk = false;
-			}
-			std::string echo_string = NEW_ECHO_HAPPY;
-			return echo_string;
+			echo_mode = false;
+			return "echo mode stopped";
 		}
+		else
+		{
+			return "SORRY I THINK ECHO MODE IS OFF";
+		}
+	}
+	if (echo_mode)
+	{
+			return order_commands;
 	}
 	if (ichy_file_nameworks.rfind("file create : ", 0) == 0)
 	{
@@ -192,13 +199,13 @@ string processstrings(string order_commands)
 		string NAME_OF_THE_FILES = data.substr(0, space);
 		string CONTENT_OF_THE_FILE = data.substr(space + 1);
 
-		if (filename.find(".txt") == string::npos)
+		if (NAME_OF_THE_FILES.find(".txt") == string::npos)
 		{
 			NAME_OF_THE_FILES += ".txt";
 		}
 		return BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
 	}
-	if (ichy_files_nameworks.rfind("file read : ", 0)==0)
+	if (ichy_file_nameworks.rfind("file read : ", 0)==0)
 	{
 		string ichyname = ichy_file_nameworks.substr(12);
 
@@ -208,7 +215,7 @@ string processstrings(string order_commands)
 		}
 		return BRIDGERequest("read", ichyname);
 	}
-	if (ichy_files_nameworks.rfind("file delete : ",0) == 0)
+	if (ichy_file_nameworks.rfind("file delete : ",0) == 0)
 	{
 		string ichyname = ichy_file_nameworks.substr(12);
 
@@ -219,8 +226,8 @@ string processstrings(string order_commands)
 
 		return BRIDGERequest("delete", ichyname);
 	}
-
-	else {
+	else
+	{
 		return "no command found :(";
 	}
 }
@@ -229,7 +236,7 @@ string processstrings(string order_commands)
 //althou there is no auto database cleanup so, we need to manualy clear our database :) 
 //@GuruOrGoru please dont change this thing up in any matter...
 string BRIDGERequest(
-	const stirng& method,
+	const string& method,
 	const string& filename,
 	const string& content = "")
 {
@@ -249,7 +256,7 @@ string BRIDGERequest(
 		"Content-Type: plain/text"
 	);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	string.json =
+	string json =
 		"{\"filename\""\"" + filename + "\"";
 
 	if (!content.empty())
@@ -285,17 +292,17 @@ string BRIDGERequest(
 	}
 	else if (method == "read")
 	{
-		stirng readURL = "https://valcon-1.onrender.com/server_bridge/files/read/" + filename;
+		string readURL = "https://valcon-1.onrender.com/server_bridge/files/read/" + filename;
 
-		curl_easy_setopt(curl, CURLOPT_URL, readUrl.c_str());
+		curl_easy_setopt(curl, CURLOPT_URL, readURL.c_str());
 		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 
 	}
 	else if (method == "delete")
 	{
-		string deleteUrl = "https://valcon-1.onrender.com/server_bridge/files/delete/" + filename;
+		string deleteURL= "https://valcon-1.onrender.com/server_bridge/files/delete/" + filename;
 
-		curl_easy_setopt(curl, CURLOPT_URL, readUrl.c_str());
+		curl_easy_setopt(curl, CURLOPT_URL, deleteURL.c_str());
 		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 
 	}
