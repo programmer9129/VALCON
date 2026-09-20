@@ -150,10 +150,10 @@ string processstrings(string order_commands)
 			" introduce yourself --> Introduce itself to USER.\n"
 			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4=' \n"
 			" echo --> echo what the USER says. \n"			
-			" mkfile :{name of the file}.txt --> open the file USER want. \n "
-			" wrtfile :{name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
-			" rdfile :{name of the file}.txt --> the terminal will show you what in written in the file \n"
-			" deltfile :{name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
+			" mkfile : {name of the file}.txt --> open the file USER want. \n "
+			" wrtfile : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
+			" rdfile : {name of the file}.txt --> the terminal will show you what in written in the file \n"
+			" deltfile : {name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
 			"\n"
 			"\n"
 			"\n"
@@ -176,19 +176,19 @@ string processstrings(string order_commands)
 		std::string answer = CALCULATOR(calc_command);
 		return "the anser is :--> " + answer;
 	}
-	if (ichy_file_nameworks.rfind("mkfile :", 0) == 0)
+	if (ichy_file_nameworks.rfind("mkfile : ", 0) == 0)
 	{
-		string ichyname = ichy_file_nameworks.substr(8);
+		string ichyname = ichy_file_nameworks.substr(9);
 		if (ichyname.find(".txt") == string::npos)
 		{
 			ichyname += ".txt";
 
-			BRIDGERequest("create", ichyname);
+			return BRIDGERequest("create", ichyname);
 			return "file:" + ichyname + " has been created";
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
-			BRIDGERequest("create", ichyname);
+			return BRIDGERequest("create", ichyname);
 			return "file:" + ichyname + " has been created";
 		}
 		else
@@ -198,9 +198,9 @@ string processstrings(string order_commands)
 				"   no massacare or difficulties happens YOU will see your needed feature here .";
 		}
 	}
-	if (ichy_file_nameworks.rfind("wrtfile :", 0) == 0)
+	if (ichy_file_nameworks.rfind("wrtfile : ", 0) == 0)
 	{
-		string data = ichy_file_nameworks.substr(9);
+		string data = ichy_file_nameworks.substr(10);
 		size_t space = data.find(' ');
 
 		if (space == string::npos)
@@ -218,9 +218,9 @@ string processstrings(string order_commands)
 		BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
 		return "file:" + NAME_OF_THE_FILES + " been updated...";
 	}
-	if (ichy_file_nameworks.rfind("rdfile :", 0)==0)
+	if (ichy_file_nameworks.rfind("rdfile : ", 0)==0)
 	{
-		string ichyname = ichy_file_nameworks.substr(8);
+		string ichyname = ichy_file_nameworks.substr(9);
 
 		if (ichyname.find(".txt") == string::npos)
 		{
@@ -242,9 +242,9 @@ string processstrings(string order_commands)
 		return "READ FAILED :(";
 		
 	}
-	if (ichy_file_nameworks.rfind("deltfile :",0) == 0)
+	if (ichy_file_nameworks.rfind("deltfile : ",0) == 0)
 	{
-		string ichyname = ichy_file_nameworks.substr(10);
+		string ichyname = ichy_file_nameworks.substr(11);
 
 		if (ichyname.find(".txt") == string::npos)
 		{
