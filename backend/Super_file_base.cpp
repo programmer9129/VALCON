@@ -300,10 +300,8 @@ string BRIDGERequest(
 
 	}
 
-	curl_easy_setopt(
-		curl,
-		CURLOPT_WRITEFUNCTION,
-		[](char* data, size_t size, size_t count.void* user)
+	curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,
+		[](char* data, size_t size, size_t count,void* user)
 		{
 			string* result = static_cast<string*>(user);
 
