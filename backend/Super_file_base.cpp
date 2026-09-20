@@ -123,7 +123,15 @@ string processstrings(string order_commands)
 			" start echo --> echo what the USER says. \n"
 			" introduce yourself --> Introduce itself to USER.\n"
 			" file create : {name of the file}.txt --> open the file USER want. \n "
-			" file write : {name of the file}.txt {context of the file} --> write the txt context into the file you gave";
+			" file write : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
+			" file read : {name of the file}.txt --> the terminal will show you what in written in the file \n"
+			" file delete : {name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
+			"\n"
+			"\n"
+			"\n"
+			"NOTE: THIS IS A UNDER_DEVOLOPING PROJECT SO, THERE IS NOT MUCH FEATURES LIKE THE NAME ITSELF...\n"
+			"      WE HOPE YOU WILL LIKE 'VALCON'  "
+			"      WE ARE WORKING ON MANY FEATURES.. AND THAT WILL TAKE TIME, ON NEXT UPDATE, WE HOPE WE CAN IMPRESS YOU MORE! ";
 	}
 	if (order_commands == "introduceyourself")
 	{
