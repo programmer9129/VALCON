@@ -142,10 +142,9 @@ string processstrings(string order_commands)
 	if (order_commands == "help")
 	{
 		return
-			" who am i --> Says who are You. \n"
-			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4'. \n"
-			" start echo --> echo what the USER says. \n"
 			" introduce yourself --> Introduce itself to USER.\n"
+			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4='. \n"
+			" start echo --> echo what the USER says. \n"			
 			" file create : {name of the file}.txt --> open the file USER want. \n "
 			" file write : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
 			" file read : {name of the file}.txt --> the terminal will show you what in written in the file \n"
@@ -181,7 +180,12 @@ string processstrings(string order_commands)
 
 			return BRIDGERequest("create", ichyname);
 		}
-		else {
+		else if (ichyname.find(".txt") != string::npos)
+		{
+			return BRIDGERequest("create", ichyname);
+		}
+		else
+		{
 			return "Sorry! USER, That feature is still under devolopment,\n"
 				"   we are already researching on that ,hope next time if,\n"
 				"   no massacare or difficulties happens YOU will see your needed feature here .";
