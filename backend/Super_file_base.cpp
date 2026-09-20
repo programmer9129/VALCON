@@ -425,7 +425,7 @@ string BRIDGERequest(
 
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
-	if (method == "write")
+	/*if (method == "write")
 	{
 		return "file: " + filename + " been updated...";
 	}
@@ -439,13 +439,11 @@ string BRIDGERequest(
 	}
 	else {
 		return response;
-	}
-	
+	}*/
+	return response;
 
 }// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
-//we need to implement calculate logics here to make sure the calculator works
-	//1.st that dont touch this function cuz hour wasted here is miserable and emotionaly damageble
-	//hour wasted = 4hr
+
 string CALCULATOR(string calc_command)
 {   //we need to implement calculate logics here to make sure the calculator works
 	//1.st that dont touch this function cuz hour wasted here is miserable and emotionaly damageble
