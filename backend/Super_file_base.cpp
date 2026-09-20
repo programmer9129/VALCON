@@ -183,13 +183,13 @@ string processstrings(string order_commands)
 		{
 			ichyname += ".txt";
 
-			return BRIDGERequest("create", ichyname);
-			//return "file:" + ichyname + " has been created";
+			string SUPER_PARSER = BRIDGERequest("create", ichyname);
+			return "file:" + ichyname + " has been created";
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
-			return BRIDGERequest("create", ichyname);
-			//return "file:" + ichyname + " has been created";
+			string SUPER_PARSER = BRIDGERequest("create", ichyname);
+			return "file:" + ichyname + " has been created";
 		}
 		else
 		{
@@ -215,7 +215,7 @@ string processstrings(string order_commands)
 		{
 			NAME_OF_THE_FILES += ".txt";
 		}
-		BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
+		string SUPER_PARSER = BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
 		return "file:" + NAME_OF_THE_FILES + " been updated...";
 	}
 	if (ichy_file_nameworks.rfind("rdfile : ", 0)==0)
@@ -250,7 +250,8 @@ string processstrings(string order_commands)
 		{
 			 ichyname += ".txt";
 		}
-		return BRIDGERequest("delete", ichyname);
+		string SUPER_PARSER = BRIDGERequest("delete", ichyname);
+		return "file deleted";
 	}
 	else
 	{
