@@ -227,20 +227,19 @@ string processstrings(string order_commands)
 			ichyname += ".txt";
 		}
 		std::string result_of_read = BRIDGERequest("read", ichyname);
-		try
+		size_t content_start = result_of_read.find("\"content\":\"");
+		if (content_start != string::npos)
 		{
-			json READING_FILE = json::parse(result_of_read);
-			if (READING_FILE["success"] == true)
+			content_start += 11;
+			size_t content_end = result_of_read_read.find("\"", content_start);
+			if (content_end != string::npos)
 			{
-				return READING_FILE["content"].get<string>();
-			}
+				return result_of_read.substr(content_start, content_end - sontent_start);
 
-			return "READ FAILED :(" + READING_FILE.value("error", "UNKNOWN");
+			}
+		
 		}
-		catch (...)
-		{
-			return "READ FAILED: Invalid response";
-		}
+		return "READ FAILED :(";
 		
 	}
 	if (ichy_file_nameworks.rfind("deltfile :",0) == 0)
