@@ -43,6 +43,9 @@ export class AppManager {
       root: document.body,
       class: ["valcon-window"],
       mount: content,
+      onfocus: () => {
+        content.dispatchEvent(new CustomEvent("windowfocus"));
+      },
       onclose: () => {
         this.windows.delete(id);
       },
