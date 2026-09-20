@@ -184,12 +184,13 @@ string processstrings(string order_commands)
 		{
 			ichyname += ".txt";
 
-			return BRIDGERequest("create", ichyname);
+			string SUPER_PARSER = BRIDGERequest("create", ichyname);
+			return "file:" + ichyname + " has been created";
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
-			return BRIDGERequest("create", ichyname);
-			
+			string SUPER_PARSER = BRIDGERequest("create", ichyname);
+			return "file:" + ichyname + " has been created";
 		}
 		else
 		{
@@ -215,8 +216,8 @@ string processstrings(string order_commands)
 		{
 			NAME_OF_THE_FILES += ".txt";
 		}
-		return BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
-		
+		string SUPER_PARSER = BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
+		return "file:" + NAME_OF_THE_FILES + " been updated...";
 	}
 	if (ichy_file_nameworks.rfind("rdfile : ", 0)==0)
 	{
@@ -235,7 +236,9 @@ string processstrings(string order_commands)
 			if (content_end != string::npos)
 			{
 				return result_of_read.substr(content_start, content_end - content_start);
+
 			}
+		
 		}
 		return "READ FAILED :(";
 		
@@ -248,8 +251,8 @@ string processstrings(string order_commands)
 		{
 			 ichyname += ".txt";
 		}
-		return BRIDGERequest("delete", ichyname);
-		
+		string SUPER_PARSER = BRIDGERequest("delete", ichyname);
+		return "file deleted";
 	}
 	if (ichy_file_nameworks.rfind("lsfile", 0) == 0)//LIST CODE
 	{
@@ -425,25 +428,14 @@ string BRIDGERequest(
 
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
-	/*if (method == "write")
-	{
-		return "file: " + filename + " been updated...";
-	}
-	if (method == "create")
-	{
-		return "file: " + filename + " has been created";
-	}
-	if (method == "deleted")
-	{
-		return "file: " + filename + " is deleted ";
-	}
-	else {
-		return response;
-	}*/
+
+
 	return response;
 
 }// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
-
+//we need to implement calculate logics here to make sure the calculator works
+	//1.st that dont touch this function cuz hour wasted here is miserable and emotionaly damageble
+	//hour wasted = 4hr
 string CALCULATOR(string calc_command)
 {   //we need to implement calculate logics here to make sure the calculator works
 	//1.st that dont touch this function cuz hour wasted here is miserable and emotionaly damageble
