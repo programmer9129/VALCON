@@ -314,7 +314,7 @@ string BRIDGERequest(
 	);
 
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-	curl_slist result = curl_easy_perform(curl);
+	CURLCode result = curl_easy_perform(curl);
 
 	if (result != CURLE_OK)
 	{
@@ -343,7 +343,7 @@ string CALCULATOR(string calc_command)
 	int sum_answer = 0;
 	if (super_varie.find("=") == string::npos)
 	{
-		return "ERROR! GIVE THE EQUAL AT THE LAST :( ."
+		return "ERROR! GIVE THE EQUAL AT THE LAST :( .";
 	}
 	for (int i = 0; i <= super_varie.length(); i++)
 	{
