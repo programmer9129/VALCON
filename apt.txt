@@ -1,0 +1,2 @@
+libcurl4-openssl-dev
+libboost-all-dev
