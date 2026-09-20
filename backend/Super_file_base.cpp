@@ -365,72 +365,165 @@ string BRIDGERequest(
 	return response;
 
 }// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
-
-string CALCULATOR(string calc_command)
-{
-	//we need to implement calculate logics here to make sure the calculator works
+//we need to implement calculate logics here to make sure the calculator works
 	//1.st that dont touch this function cuz hour wasted here is miserable and emotionaly damageble
 	//hour wasted = 4hr
-	std::string super_varie = calc_command;
-	std::vector<int>numbers;
-	std::vector<int>unified_number_set;
-	std::vector<char>operator_set;
-	std::vector<std::string>operators = { "+", "-","*","/"};
-	int number = 0;
-	int sum_answer = 0;
-	if (super_varie.find("=") == string::npos)
+string CALCULATOR(string calc_command)
+{   //we need to implement calculate logics here to make sure the calculator works
+	//1.st that dont touch this function cuz hour wasted here is miserable and emotionaly damageble
+	//hour wasted = 5hr
+	if (calc_command.find("=") == string::npos)
 	{
 		return "ERROR! GIVE THE EQUAL AT THE LAST :( .";
 	}
-	for (int i = 0; i <= super_varie.length(); i++)
+	string super_varie = calc_command.substr(0, calc_command.find("="));
+	size_t position = 0;
+
+	auto skip_spaces = [&]()
 	{
-		if (isdigit(super_varie[i]))
+		while (position < super_varie.length() && isspace(static_cast<unsigned char>(super_varie[position])))
 		{
-			numbers.push_back(super_varie[i] - '0');
+			position++;
 		}
-		if (super_varie[i] != NULL)
+	};
+
+	function<double()> expression;
+	function<double()> term;
+	function<double()> factor;
+
+	factor = [&]() -> double
+	{
+		skip_spaces();
+		//for negtive numbers
+		if (position < super_varie.length() && super_varie[position] == '-')
 		{
-			if (std::find(operators.begin(), operators.end(), std::string(1, super_varie[i])) != operators.end())
+			position++;
+			return -factor();
+		}
+		//for positive number
+		if (position < super_varie.length() && super_varie[position] == '+')
+		{
+			position++;
+			return factor();
+		}
+		//for Brackets
+		if (position < super_varie.length() && super_varie[position] == '(')
+		{
+			position++;
+			double answer = expression();
+			skip_spaces();
+			if (position >= super_varie.length() || super_varie[position] != ')')
 			{
-				number = NUMBERIFIER(numbers);
-				unified_number_set.push_back(number);
-				operator_set.push_back(super_varie[i]);
-				numbers.clear();
-				number = 0;
+				throw runtime_error("Missing closing bracket");
+			}
+			position++;
+			return answer;
+		}
+		//for collect digits
+		vector<int> numbers;
+		while (position < super_varie.length() && isdigit(static_cast<unsigned char>(super_varie[position])))
+		{
+			numbers.push_back(super_varie[position] - '0');
+			position++;
+		}
+		if (numbers.empty())
+		{
+			throw runtime_error("Expected a number");
+		}
+		//NUMBERIFY
+		return NUMBERIFIER(numbers);
+	};
+	// MULTIPLICATION / DIVISION
+	term = [&]() -> double
+	{
+		double answer = factor();
+		while (true)
+		{
+			skip_spaces();
+			if (position >= super_varie.length())
+				break;
+			if (super_varie[position] == '*')
+			{
+				position++;
+				answer = answer * factor();
+			}
+			else if (super_varie[position] == '/')
+			{
+				position++;
+				double divisor = factor();
+				if (divisor == 0)
+				{
+					throw runtime_error("Cannot divide by zero");
+				}
+				answer = answer / divisor;
+			}
+			else
+			{
+				break;
 			}
 		}
-		else
-		{
-			number = NUMBERIFIER(numbers);
-			unified_number_set.push_back(number);
-			numbers.clear();
-			number = 0;
-		}		
-	}
-	sum_answer = unified_number_set[0];
-	unified_number_set.erase(unified_number_set.begin() + 0);
-	int x = 0;
-	for (char y : operator_set)
+			return answer;
+	};
+	// ADDITION / SUBTRACTION
+	expression = [&]() -> double
 	{
-		if (y == '+')
+		double answer = term();
+		while (true)
 		{
-			sum_answer = sum_answer + unified_number_set[x];
+		skip_spaces();
+
+			if (position >= super_varie.length())
+				break;
+
+			if (super_varie[position] == '+')
+			{
+				position++;
+				answer = answer + term();
+			}
+			else if (super_varie[position] == '-')
+			{
+				position++;
+				answer = answer - term();
+			}
+			else
+			{
+				break;
+			}
 		}
-		else if (y == '-')
+		return answer;
+	};
+	try
+	{
+		double final_answer = expression();
+
+		skip_spaces();
+
+		if (position != super_varie.length())
 		{
-			sum_answer = sum_answer - unified_number_set[x];
+			throw runtime_error("Invalid calculation");
 		}
-		else if (y == '*')
+
+		if (floor(final_answer) == final_answer)
 		{
-			sum_answer = sum_answer * unified_number_set[x];
+			return to_string(static_cast<long long>(final_answer));
 		}
-		else if (y == '/')
+		string answer = to_string(final_answer);
+
+		while (!answer.empty() && answer.back() == '0')
 		{
-			sum_answer = sum_answer / unified_number_set[x];
+			answer.pop_back();
 		}
-		x++;
+
+		if (!answer.empty() && answer.back() == '.')
+		{
+			answer.pop_back();
+		}
+		return answer;
 	}
-	return std::to_string(sum_answer);
+	catch (const exception& error)
+	{
+		return string("CALCULATOR ERROR: ") + error.what();
+	}
 }
 int NUMBERIFIER(vector<int> numbers_UNFIED)
 {
