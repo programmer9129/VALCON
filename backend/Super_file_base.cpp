@@ -249,7 +249,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* user
 	std::_Transform_vbool_aligned* AI_RETURN_RESPONSE_FLAGS = static_cast<std::string*>(userp);
 
 	response->append(
-		static_cast<as_const char*>(contents),
+		static_cast<const char*>(contents),
 		total
 	);
 	return total;
