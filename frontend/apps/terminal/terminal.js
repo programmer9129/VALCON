@@ -12,11 +12,16 @@ export function startTerminal(root) {
   const terminal = root.querySelector(".terminal");
   const output = root.querySelector(".output");
 
+  let activeInput;
+  let processing = false;
+
   terminal.addEventListener("click", () => {
-    terminal.querySelector(".cli")?.focus();
+    activeInput?.focus();
   });
 
-  let processing = false;
+  root.addEventListener("windowfocus", () => {
+    activeInput?.focus();
+  });
 
   function setTheme(theme) {
     terminal.classList.toggle("light", theme === "light");
@@ -77,6 +82,8 @@ export function startTerminal(root) {
     input.type = "text";
     input.autocomplete = "off";
     input.spellcheck = false;
+
+    activeInput = input;
 
     prompt.textContent = "user@valcon:~$ ";
 
