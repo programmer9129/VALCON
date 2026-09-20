@@ -229,13 +229,13 @@ string processstrings(string order_commands)
 		std::string result_of_read = BRIDGERequest("read", ichyname);
 		try
 		{
-			json response = json::parse(result);
-			if (response["success"] == true)
+			json READING_FILE = json::parse(result);
+			if (READING_FILE["success"] == true)
 			{
-				return response["content"].get<string>();
+				return READING_FILE["content"].get<string>();
 			}
 
-			return "READ FAILED :(" + response.value("error", "UNKNOWN");
+			return "READ FAILED :(" + READING+FILE.value("error", "UNKNOWN");
 		}
 		catch (...)
 		{
