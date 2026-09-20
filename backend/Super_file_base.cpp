@@ -119,7 +119,7 @@ string processstrings(string order_commands)
 	if (ichy_file_nameworks == "echo")
 	{
 		echo_mode = true;
-		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'stop echo' to stop echoing.";
+		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'echo stop' to stop echoing.";
 	}
 
 	if (ichy_file_nameworks == "echo stop")
