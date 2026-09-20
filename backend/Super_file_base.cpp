@@ -116,13 +116,13 @@ string processstrings(string order_commands)
 {
 	size_t search_calculate = order_commands.find("calculate");
 	auto ichy_file_nameworks = order_commands;	
-	if (ichy_file_nameworks == "start echo")
+	if (ichy_file_nameworks == "echo")
 	{
 		echo_mode = true;
 		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'stop echo' to stop echoing.";
 	}
 
-	if (ichy_file_nameworks == "stop echo")
+	if (ichy_file_nameworks == "echo stop")
 	{
 		if (echo_mode)
 		{
@@ -139,16 +139,21 @@ string processstrings(string order_commands)
 		return ichy_file_nameworks;
 	}
 	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
+	if (order_commands == "whoami")
+	{
+		return "YOU ARE USER... BEEP BEEP ... I AM HAPPY TO WORK WITH YOU :D \n";
+		return "I HOPE YOU WILL LIKE ME {^-^}";
+	}
 	if (order_commands == "help")
 	{
 		return
 			" introduce yourself --> Introduce itself to USER.\n"
-			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4='. \n"
-			" start echo --> echo what the USER says. \n"			
-			" file create : {name of the file}.txt --> open the file USER want. \n "
-			" file write : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
-			" file read : {name of the file}.txt --> the terminal will show you what in written in the file \n"
-			" file delete : {name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
+			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4=' \n"
+			" echo --> echo what the USER says. \n"			
+			" mkfile :{name of the file}.txt --> open the file USER want. \n "
+			" wrtfile :{name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
+			" rdfile :{name of the file}.txt --> the terminal will show you what in written in the file \n"
+			" deltfile :{name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
 			"\n"
 			"\n"
 			"\n"
@@ -160,29 +165,31 @@ string processstrings(string order_commands)
 	{
 		return
 			" Hi!, I am Valcon .A Web CLI Application, I can do much things. \n"
-			"I am still Under devolopment please don't mind... :) ."
-			"My creators are trying to make me improved and better. ;)"
+			"I am still Under devolopment please don't mind... :) \n"
+			"My creators are trying to make me improved and better. ;) \n"
 			"btw nice to meet YOU!.\n"
-			"What can I do for you now ? :D .";
+			"What can I do for you now ? :D ";
 	}
 	if (search_calculate != std::string::npos)
 	{
 		std::string calc_command = order_commands.substr(9);
 		std::string answer = CALCULATOR(calc_command);
-		return answer;
+		return "the anser is :--> " + answer;
 	}
-	if (ichy_file_nameworks.rfind("file create : ", 0) == 0)
+	if (ichy_file_nameworks.rfind("mkfile :", 0) == 0)
 	{
-		string ichyname = ichy_file_nameworks.substr(14);
+		string ichyname = ichy_file_nameworks.substr(8);
 		if (ichyname.find(".txt") == string::npos)
 		{
 			ichyname += ".txt";
 
-			return BRIDGERequest("create", ichyname);
+			BRIDGERequest("create", ichyname);
+			return "file:" + ichyname + " has been created";
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
-			return BRIDGERequest("create", ichyname);
+			BRIDGERequest("create", ichyname);
+			return "file:" + ichyname + " has been created";
 		}
 		else
 		{
@@ -191,9 +198,9 @@ string processstrings(string order_commands)
 				"   no massacare or difficulties happens YOU will see your needed feature here .";
 		}
 	}
-	if (ichy_file_nameworks.rfind("file write : ", 0) == 0)
+	if (ichy_file_nameworks.rfind("wrtfile :", 0) == 0)
 	{
-		string data = ichy_file_nameworks.substr(13);
+		string data = ichy_file_nameworks.substr(9);
 		size_t space = data.find(' ');
 
 		if (space == string::npos)
@@ -208,27 +215,42 @@ string processstrings(string order_commands)
 		{
 			NAME_OF_THE_FILES += ".txt";
 		}
-		return BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
+		BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
+		return "file:" + NAME_OF_THE_FILES + " been updated...";
 	}
-	if (ichy_file_nameworks.rfind("file read : ", 0)==0)
+	if (ichy_file_nameworks.rfind("rdfile :", 0)==0)
 	{
-		string ichyname = ichy_file_nameworks.substr(12);
+		string ichyname = ichy_file_nameworks.substr(8);
 
 		if (ichyname.find(".txt") == string::npos)
 		{
 			ichyname += ".txt";
 		}
-		return BRIDGERequest("read", ichyname);
+		std::string result_of_read = BRIDGERequest("read", ichyname);
+		try
+		{
+			json response = json::parse(result);
+			if (response["success"] == true)
+			{
+				return response["content"].get<string>();
+			}
+
+			return "READ FAILED :(" + response.value("error", "UNKNOWN");
+		}
+		catch (...)
+		{
+			return "READ FAILED: Invalid response";
+		}
+		
 	}
-	if (ichy_file_nameworks.rfind("file delete : ",0) == 0)
+	if (ichy_file_nameworks.rfind("deltfile :",0) == 0)
 	{
-		string ichyname = ichy_file_nameworks.substr(14);
+		string ichyname = ichy_file_nameworks.substr(10);
 
 		if (ichyname.find(".txt") == string::npos)
 		{
 			 ichyname += ".txt";
 		}
-
 		return BRIDGERequest("delete", ichyname);
 	}
 	else
