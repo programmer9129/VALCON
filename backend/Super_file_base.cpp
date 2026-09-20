@@ -319,7 +319,7 @@ string BRIDGERequest(
 			}
 			catch (...)
 			{
-				return 0;
+				return static_cast<size_t>(0);
 			}
 
 			return total;
@@ -327,7 +327,7 @@ string BRIDGERequest(
 	);
 
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-	curl_easy_setopt(curl, NtReadCurrentTebUlongPtr_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
 
 	CURLcode result = curl_easy_perform(curl);
