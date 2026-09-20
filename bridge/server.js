@@ -188,6 +188,38 @@ app.delete("/server_bridge/files/delete/:filename", async (req,res) => {
         });
     }
 });
+app.get("/server_bridge/files/list", async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .storage
+            .from("valcon-files")
+            .list("", {
+                limit: 100,
+                offset: 0
+            });
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                operation: "list",
+                error: error.message
+            });
+        }
+
+        return res.json({
+            success: true,
+            operation: "list",
+            files: data
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            operation: "list",
+            error: error.message
+        });
+    }
+});
 
 app.listen(PORT, () =>{
    console.log('bridge is running on port' + PORT);

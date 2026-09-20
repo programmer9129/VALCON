@@ -242,7 +242,7 @@ string processstrings(string order_commands)
 		return "READ FAILED :(";
 		
 	}
-	if (ichy_file_nameworks.rfind("deltfile : ",0) == 0)
+	if (ichy_file_nameworks.rfind("deltfile : ",0) == 0)//CODE TO DELETE
 	{
 		string ichyname = ichy_file_nameworks.substr(11);
 
@@ -252,6 +252,59 @@ string processstrings(string order_commands)
 		}
 		string SUPER_PARSER = BRIDGERequest("delete", ichyname);
 		return "file deleted";
+	}
+	if (ichy_file_nameworks.rfind("lsfile", 0) == 0)//LIST CODE
+	{
+		string result_of_list = BRIDGERequest("list", "");
+		size_t files_start = result_of_list.find("\"files\":[");
+		if (files_start == string::npos)
+		{
+			return "Could not load your files.";
+		}
+
+		files_start += 9;
+		string furnished_list =
+			"\n"
+			"Your files\n"
+			"-------------------------\n";
+
+		int file_count = 0;
+		size_t position = files_start;
+
+		while (true)
+		{
+			size_t name_start =	result_of_list.find("\"name\":\"", position);
+			
+			if (name_start == string::npos)
+				break;
+
+			name_start += 8;
+			size_t name_end = result_of_list.find("\"", name_start);
+
+			if (name_end == string::npos)
+				break;
+
+			string filename = result_of_list.substr(name_start,name_end - name_start);
+			file_count++;
+
+			furnished_list += "  " + to_string(file_count) + ". " + filename + "\n";
+			position = name_end + 1;
+		}
+		if (file_count == 0)
+		{
+			furnished_list += "  No files yet.\n";
+		}
+		furnished_list += "-------------------------\n";
+
+		if (file_count == 1)
+		{
+			furnished_list += "1 file";
+		}
+		else
+		{
+			furnished_list += to_string(file_count) + " files";
+		}
+		return furnished_list;
 	}
 	else
 	{
@@ -345,6 +398,13 @@ string BRIDGERequest(
 		curl_easy_setopt(curl, CURLOPT_URL, deleteURL.c_str());
 		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 
+	}
+	else if (method == "list")
+	{
+		string listURL = "https://valcon-1.onrender.com/server_bridge/files/list";
+
+		curl_easy_setopt(curl, CURLOPT_URL, listURL.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	}
 
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -536,3 +596,5 @@ int NUMBERIFIER(vector<int> numbers_UNFIED)
 	}
 	return number_UNFIED;
 }
+
+//VALCON COMPLETE !
