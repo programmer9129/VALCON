@@ -422,7 +422,8 @@ string BRIDGERequest(
 		response =
 			"Bridge error:" + string(curl_easy_strerror(result));
 	}
-
+	long http_code = 0;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 	/*if (method == "write")
@@ -440,7 +441,7 @@ string BRIDGERequest(
 	else {
 		return response;
 	}*/
-	return response;
+	return "HTTP " + to_string(http_code) + "\n" + response;
 
 }// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
 
