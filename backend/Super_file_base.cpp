@@ -116,14 +116,13 @@ string processstrings(string order_commands)
 {
 	size_t search_calculate = order_commands.find("calculate");
 	auto ichy_file_nameworks = order_commands;	
-	bool echo_mode = false;
-	if (order_commands == "start echo")
+	if (ichy_file_nameworks == "start echo")
 	{
 		echo_mode = true;
 		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'stop echo' to stop echoing.";
 	}
 
-	if (order_commands == "stop echo")
+	if (ichy_file_nameworks == "stop echo")
 	{
 		if (echo_mode)
 		{
