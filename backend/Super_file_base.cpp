@@ -154,6 +154,7 @@ string processstrings(string order_commands)
 			" wrtfile : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
 			" rdfile : {name of the file}.txt --> the terminal will show you what in written in the file \n"
 			" deltfile : {name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
+			" lsfile --> this command will show the list of the files in the database \n"
 			"\n"
 			"\n"
 			"\n"
