@@ -4,7 +4,7 @@ const express = require("express");
 const {createClient} = require("@supabase/supabase-js");
 const BUCKET_NAME = "valcon-files";
 
-const ID_BACKEND_ADRESS = "https://valcon-r5ti.onrender.com/health_bridge";
+const ID_BACKEND_ADRESS = "https://valcon-r5ti.onrender.com/server_bridge";
 //const ID_BACKEND_ADRESS_LIVE =
 const app = express();
 const supabase = createClient(
