@@ -12,6 +12,8 @@
 #include <curl/curl.h>
 
 using namespace std;
+
+bool echo_mode = false;
 string processstrings(string order_commands);//command engine here
 string CALCULATOR(string calc_command);//calcualtor here
 int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
@@ -113,9 +115,31 @@ int main()
 string processstrings(string order_commands)
 {
 	size_t search_calculate = order_commands.find("calculate");
-	auto ichy_file_nameworks = order_commands;
-	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
+	auto ichy_file_nameworks = order_commands;	
 	bool echo_mode = false;
+	if (order_commands == "start echo")
+	{
+		echo_mode = true;
+		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'stop echo' to stop echoing.";
+	}
+
+	if (order_commands == "stop echo")
+	{
+		if (echo_mode)
+		{
+			echo_mode = false;
+			return "echo mode stopped";
+		}
+		else
+		{
+			return "SORRY I THINK ECHO MODE IS OFF";
+		}
+	}
+	if (echo_mode)
+	{
+		return ichy_file_nameworks;
+	}
+	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
 	if (order_commands == "help")
 	{
 		return
@@ -149,31 +173,9 @@ string processstrings(string order_commands)
 		std::string answer = CALCULATOR(calc_command);
 		return answer;
 	}
-	if (order_commands == "startecho")
-	{
-		echo_mode = true;
-		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'stop echo' to stop echoing.";
-	}
-
-	if (order_commands == "stopecho")
-	{
-		if (echo_mode)
-		{
-			echo_mode = false;
-			return "echo mode stopped";
-		}
-		else
-		{
-			return "SORRY I THINK ECHO MODE IS OFF";
-		}
-	}
-	if (echo_mode)
-	{
-			return order_commands;
-	}
 	if (ichy_file_nameworks.rfind("file create : ", 0) == 0)
 	{
-		string ichyname = ichy_file_nameworks.substr(13);
+		string ichyname = ichy_file_nameworks.substr(14);
 		if (ichyname.find(".txt") == string::npos)
 		{
 			ichyname += ".txt";
@@ -217,7 +219,7 @@ string processstrings(string order_commands)
 	}
 	if (ichy_file_nameworks.rfind("file delete : ",0) == 0)
 	{
-		string ichyname = ichy_file_nameworks.substr(12);
+		string ichyname = ichy_file_nameworks.substr(14);
 
 		if (ichyname.find(".txt") == string::npos)
 		{
