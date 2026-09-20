@@ -184,12 +184,12 @@ string processstrings(string order_commands)
 			ichyname += ".txt";
 
 			return BRIDGERequest("create", ichyname);
-			return "file:" + ichyname + " has been created";
+			//return "file:" + ichyname + " has been created";
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
 			return BRIDGERequest("create", ichyname);
-			return "file:" + ichyname + " has been created";
+			//return "file:" + ichyname + " has been created";
 		}
 		else
 		{
