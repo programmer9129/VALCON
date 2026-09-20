@@ -75,7 +75,7 @@ app.post("/server_bridge/files/create", async(req,res) => {
         }
         const {data, error} = await supabase.storage
             .from(BUCKET_NAME)
-            .upload(filename, "", {
+            .upload(filename, Buffer.from("","utf8"), {
                 contentType: "text/plain",
                 upsert: false
             });
@@ -94,7 +94,7 @@ app.post("/server_bridge/files/create", async(req,res) => {
 
         res.status(400).json({
             success: false,
-            error:error.massage //dont need that much only when testing
+            error:error.message //dont need that much only when testing
         });
     }
 });
