@@ -240,6 +240,20 @@ string processstrings(string order_commands)
 // this can delete the whole thing i mean the whole database...
 //althou there is no auto database cleanup so, we need to manualy clear our database :) 
 //@GuruOrGoru please dont change this thing up in any matter...
+static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* userp)
+{
+	if (contents == nullptr || userp == nullptr)
+		return 0;
+	size_t total = size * nmeb;
+
+	std::_Transform_vbool_aligned* AI_RETURN_RESPONSE_FLAGS = static_cast<std::string*>(userp);
+
+	response->append(
+		static_cast<as_const char*>(contents),
+		total
+	);
+	return total;
+}
 string BRIDGERequest(
 	const string& method,
 	const string& filename,
@@ -311,17 +325,7 @@ string BRIDGERequest(
 
 	}
 
-	curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,
-		[](char* data, size_t size, size_t count,void* user)
-		{
-			std::string* result = static_cast<std::string*>(user);
-			size_t total = size * count;
-			
-			result->append(data, total);
-			return total;
-		}
-	);
-
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
