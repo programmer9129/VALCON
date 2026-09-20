@@ -310,11 +310,19 @@ string BRIDGERequest(
 	curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,
 		[](char* data, size_t size, size_t count,void* user)
 		{
-			string* result = static_cast<string*>(user);
+			std::string* result = static_cast<std::string*>(user);
+			size_t total = size * count;
+			
+			try
+			{
+				result->append(data, total);
+			}
+			catch (...)
+			{
+				return 0;
+			}
 
-			result->append(data, size * count);
-
-			return size * count;
+			return total;
 		}
 	);
 
