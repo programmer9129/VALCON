@@ -62,7 +62,7 @@ int main()
 					auto res = crow::response(200, response);
 					return res;
 				}
-
+				
 				if (req.method == crow::HTTPMethod::GET)
 				{
 					crow::json::wvalue response;
@@ -153,7 +153,7 @@ string processstrings(string order_commands)
 			"\n"
 			"\n"
 			"NOTE: THIS IS A UNDER_DEVOLOPING PROJECT SO, THERE IS NOT MUCH FEATURES LIKE THE NAME ITSELF...\n"
-			"      WE HOPE YOU WILL LIKE 'VALCON'  "
+			"      WE HOPE YOU WILL LIKE 'VALCON'\n  "
 			"      WE ARE WORKING ON MANY FEATURES.. AND THAT WILL TAKE TIME, ON NEXT UPDATE, WE HOPE WE CAN IMPRESS YOU MORE! ";
 	}
 	if (order_commands == "introduceyourself")
@@ -317,15 +317,7 @@ string BRIDGERequest(
 			std::string* result = static_cast<std::string*>(user);
 			size_t total = size * count;
 			
-			try
-			{
-				result->append(data, total);
-			}
-			catch (...)
-			{
-				return static_cast<size_t>(0);
-			}
-
+			result->append(data, total);
 			return total;
 		}
 	);
