@@ -8,7 +8,32 @@
   </head>
 
   <body>
-    <wa-page id="app">
+    <form id="authGate">
+      <div class="auth-card">
+        <h1>VALCON</h1>
+        <p class="auth-subtitle">Web Desktop</p>
+        <input
+          id="authUser"
+          type="text"
+          placeholder="Username"
+          autocomplete="username"
+          required
+        />
+
+        <input
+          id="authPass"
+          type="password"
+          placeholder="Password"
+          autocomplete="current-password"
+          required
+        />
+        <button id="authSubmit" type="submit">Register</button>
+
+        <button id="authSwitch" type="button">Registered?? Log in</button>
+        <p id="authMsg"></p>
+      </div>
+    </form>
+    <wa-page id="app" style="display: none">
       <main id="desktop">
         <div id="wallpaper"></div>
         <div id="dock">
