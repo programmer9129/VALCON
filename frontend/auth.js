@@ -53,10 +53,10 @@ export async function register(username, password) {
 
   const nacl = makeNacl();
 
-  const hash = await sha256(salt + ":" + password);
+  const hash = await sha256(nacl + ":" + password);
 
   users[key] = {
-    salt,
+    nacl,
     hash,
   };
 
@@ -66,19 +66,20 @@ export async function register(username, password) {
 export async function login(username, password) {
   username = username.trim();
   const users = readUsers();
-  const user = users[user.toLowerCase()];
+  const key = username.toLowerCase();
+  const user = users[key];
 
   if (!user) {
     throw new Error("Wrong username or password");
   }
 
-  const hash = await sha256(user.salt + ":" + password);
+  const hash = await sha256(user.nacl + ":" + password);
 
   if (hash !== user.hash) {
     throw new Error("Wrong username or password");
   }
 
-  const token = await sha256(user.salt + ":" + username);
+  const token = await sha256(user.nacl + ":" + username);
 
   currentUser = {
     username,
@@ -96,3 +97,5 @@ export function logout() {
   currentUser = null;
   location.reload();
 }
+
+export function bootAuth() {}
