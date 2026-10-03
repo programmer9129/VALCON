@@ -1,3 +1,5 @@
+import _default from "@awesome.me/webawesome/dist/styles/component/form-control.styles.js";
+
 const USERS_KEY = "valcon.users";
 
 let currentUser = null;
@@ -47,7 +49,7 @@ export async function register(username, password) {
 
   const key = username.toLowerCase();
 
-  if (user[key]) {
+  if (users[key]) {
     throw new Error("Your username is already taken");
   }
 
@@ -98,4 +100,65 @@ export function logout() {
   location.reload();
 }
 
-export function bootAuth() {}
+export function bootAuth() {
+  return new Promise((resolve) => {
+    const gate = document.getElementById("authGate");
+    const user = document.getElementById("authUser");
+    const pass = document.getElementById("authPass");
+    const submit = document.getElementById("authSubmit");
+    const switchBtn = document.getElementById("authSwitch");
+    const msg = document.getElementById("authMsg");
+
+    let mode = hasAnyUser() ? "login" : "register";
+    function render() {
+      const registering = mode === "register";
+      submit.textContent = registering ? "Register" : "Log in";
+      switchBtn.textContent = registering
+        ? "Already registered? Log in"
+        : "No account? Register";
+      msg.textContent = "";
+      pass.value = "";
+      user.focus();
+    }
+
+    switchBtn.addEventListener("click", () => {
+      mode = mode === "register" ? "login" : "register";
+      render();
+    });
+
+    gate.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const username = user.value.trim();
+
+      const password = pass.value;
+
+      if (!username || !password) {
+        msg.textContent = "Username and password are required";
+
+        return;
+      }
+
+      msg.textContent = "Checking...";
+
+      submit.disabled = true;
+
+      try {
+        if (mode === "register") {
+          await register(username, password);
+          msg.textContent = "Registered. Loggin in...";
+        }
+
+        await login(username, password);
+
+        gate.remove();
+
+        resolve(currentUser);
+      } catch (err) {
+        msg.textContent = err.message;
+        submit.disabled = false;
+      }
+    });
+    render();
+  });
+}

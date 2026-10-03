@@ -9,6 +9,12 @@
       <wa-icon name="keyboard"></wa-icon>
       <span>Keyboard</span>
     </button>
+
+    <!-- NEW -->
+    <button class="settings-tab" data-section="account">
+      <wa-icon name="person"></wa-icon>
+      <span>Account</span>
+    </button>
   </div>
 
   <div class="settings-content">
@@ -40,7 +46,7 @@
             Choose Image
           </wa-button>
 
-          <span id="wallFileName">No image selected</span>
+          <span id="wallFileName"> No image selected </span>
         </div>
 
         <div id="wallStatus"></div>
@@ -59,13 +65,34 @@
           <h2>For Dock Toggle</h2>
           <p>
             Your keyboard shortcut for hiding or showing the dock (needed if
-            Super + D is mapped with something else on your PC)
+            Super + D is mapped with something else in your PC)
           </p>
         </div>
 
         <wa-button id="dockShortcut" appearance="outlined">
           Super + D
         </wa-button>
+      </div>
+    </section>
+
+    <!-- NEW -->
+    <section id="account" class="settings-section">
+      <h1>Account</h1>
+
+      <div class="setting">
+        <div class="setting-info">
+          <h2>Username</h2>
+          <p id="accountUsername">Unknown</p>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <h2>Session</h2>
+          <p>Log out of VALCON on this browser.</p>
+        </div>
+
+        <wa-button id="logoutBtn" appearance="outlined"> Log out </wa-button>
       </div>
     </section>
   </div>

@@ -12,12 +12,6 @@ import { startSettings } from "./apps/settings/settings.js";
 import "./apps/terminal/terminal.css";
 import "./apps/settings/settings.css";
 
-const terminalApp = document.getElementById("terminalApp");
-const settingsApp = document.getElementById("settingsApp");
-const apps = new AppManager();
-const dock = document.getElementById("dock");
-const savedWallpaper = localStorage.getItem("wallpaper");
-
 async function boot() {
   await bootAuth();
 
@@ -34,7 +28,7 @@ async function boot() {
 
   if (savedWallpaper) {
     document.getElementById("wallpaper").style.backgroundImage =
-      `linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url("${savedWallpape}")`;
+      `linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url("${savedWallpaper}")`;
   }
 
   let dockHidden = false;
@@ -101,3 +95,5 @@ async function boot() {
     dock.classList.remove("hidden");
   });
 }
+
+boot();
