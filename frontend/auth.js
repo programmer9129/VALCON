@@ -108,6 +108,13 @@ export function bootAuth() {
     const submit = document.getElementById("authSubmit");
     const switchBtn = document.getElementById("authSwitch");
     const msg = document.getElementById("authMsg");
+    const authWallpaper = document.querySelector(".auth-wallpaper");
+
+    const savedWallpaper = localStorage.getItem("wallpaper");
+
+    if (authWallpaper && savedWallpaper) {
+      authWallpaper.style.backgroundImage = `url("${savedWallpaper}")`;
+    }
 
     let mode = hasAnyUser() ? "login" : "register";
     function render() {
@@ -119,6 +126,7 @@ export function bootAuth() {
       msg.textContent = "";
       pass.value = "";
       user.focus();
+      pass.autocommplete = registering ? "new-password" : "current-password";
     }
 
     switchBtn.addEventListener("click", () => {
@@ -139,14 +147,14 @@ export function bootAuth() {
         return;
       }
 
-      msg.textContent = "Checking...";
+      msg.textContent = "";
 
       submit.disabled = true;
+      msg.textContent = "Working...";
 
       try {
         if (mode === "register") {
           await register(username, password);
-          msg.textContent = "Registered. Loggin in...";
         }
 
         await login(username, password);
@@ -157,6 +165,7 @@ export function bootAuth() {
       } catch (err) {
         msg.textContent = err.message;
         submit.disabled = false;
+        submit.textContent = mode === "register" ? "Register" : "Log in";
       }
     });
     render();

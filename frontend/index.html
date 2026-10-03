@@ -9,28 +9,57 @@
 
   <body>
     <form id="authGate">
-      <div class="auth-card">
-        <h1>VALCON</h1>
-        <p class="auth-subtitle">Web Desktop</p>
-        <input
-          id="authUser"
-          type="text"
-          placeholder="Username"
-          autocomplete="username"
-          required
-        />
+      <div class="auth-wallpaper"></div>
+      <div class="auth-overlay"></div>
+      <div class="auth-content">
+        <div class="auth-card">
+          <div class="auth-brand">
+            <div class="auth-icon">
+              <wa-icon name="terminal"></wa-icon>
+            </div>
 
-        <input
-          id="authPass"
-          type="password"
-          placeholder="Password"
-          autocomplete="current-password"
-          required
-        />
-        <button id="authSubmit" type="submit">Register</button>
+            <h1>VALCON</h1>
+            <p>Web Desktop</p>
+          </div>
 
-        <button id="authSwitch" type="button">Registered?? Log in</button>
-        <p id="authMsg"></p>
+          <div class="auth-fields">
+            <div class="auth-field">
+              <label for="authUser">Username</label>
+
+              <input
+                id="authUser"
+                type="text"
+                placeholder="Enter your username"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                required
+              />
+            </div>
+
+            <div class="auth-field">
+              <label for="authPass">Password</label>
+
+              <input
+                id="authPass"
+                type="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+          </div>
+
+          <wa-button id="authSubmit" type="submit" variant="brand" size="large">
+            Register
+          </wa-button>
+
+          <button id="authSwitch" type="button">
+            Already registered? Log in
+          </button>
+
+          <p id="authMsg" role="status" aria-live="polite"></p>
+        </div>
       </div>
     </form>
     <wa-page id="app" style="display: none">
