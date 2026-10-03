@@ -1,0 +1,2 @@
+E:/GitHub/VALCON/VALCON/vcpkg_installed/vcpkg/blds/openssl/x64-windows-dbg/CMakeFiles/edit_cache.dir
+E:/GitHub/VALCON/VALCON/vcpkg_installed/vcpkg/blds/openssl/x64-windows-dbg/CMakeFiles/rebuild_cache.dir

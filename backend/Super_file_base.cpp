@@ -11,13 +11,59 @@
 #include <cmath>
 #include <curl/curl.h>
 
+//start making user Auth 
+
+#include <functional>
+#include <stdexcept>
+#include <cctype>
+#include <sstream>
+#include <iomanip>
+#include <iomanip>
+#include <random>
+#include <unordered_map>
+#include <mutex>
+#include <chrono>
+
 using namespace std;
 
 bool echo_mode = false;
+
+// defining the session function : change structure if the functions fails to calibrate with the database(like SQLite,SQL)
+struct ValconSession
+{
+	string user_id_name;
+
+	string current_path; // the path of the user 
+	bool echo_mode = false;
+
+	chrono::steady_clock::time_point last_used;
+};
+
+unordered_map<string, ValconSession> Active_sessions;
+mutex session_mutex; //session mutex to prevent unwanted conditions like race or smthn
+mutex registration_mutex; // registration mutex to prevent race conditions
+
+const chrono::minutes SESSION_TIME(1440);
+const string DATABASE_ADRESS = "DATABASE/";
+
 string processstrings(string order_commands);//command engine here
+
 string CALCULATOR(string calc_command);//calcualtor here
+
 int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
-string BRIDGERequest(const string& method, const string& filename, const string& content = "");//bridge to supabase here 
+
+string BRIDGERequest(
+	const string& method,
+	const string& filename,
+	const string& content = ""
+);
+//bridge to supabase here 
+
+string processstrings_USER(const string& command, const string& token);// token system for striing processior
+string create_session(const string& user_id_name); // session code for user authentication
+
+bool validuser(const string& username);
+bool validpassword(const string& password);
 
 
 int main()
