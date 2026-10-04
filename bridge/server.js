@@ -403,12 +403,79 @@ app.post("/server_bridge/folders/list", async (req, res) => {
         });
     }
 });
+app.post("/server_bridge/folders/mkdir", async (req, res) => {
+   try {
+       const { profile, path } = req.body;
+
+       if (!profile || !path) {
+           return res.status(400).json({
+               success: false,
+               error: "please profile and path"
+           });
+       }
+       const cleanProfile = String(profile).trim().replace(/^\/+|\/+$/g, "");
+       const cleanPath = String(path).trim().replace(/^\/+|\/+$/g, "");
+
+       if (
+           cleanProfile.includes("..") ||
+           cleanProfile.includes("\\") ||
+           cleanPath.includes("\\") ||
+           cleanPath.split("/").some(part => part ==="..")
+       ){
+           return res.status(400).json({
+               success: false,
+               error: "invalid path"
+           });
+       }
+       const folderpath = `${cleanProfile}/Desktop/${cleanProfile}/${cleanPath}`;
+
+       const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(`${folderPath}/.folder`,
+           Buffer.form(""),
+           {
+               contentType: "application/octet-stream",
+               upsert: true
+           }
+       );
+
+       if (error) {
+           if (error.message &&
+               (
+                   error.message,toLowerCase().includes("already exists") ||
+                   error.message.toLowerCase().includes("duplicate")
+               )
+           ){
+               return res.status(409).json({
+                   success: false,
+                   error: "folder already exists"
+               });
+           }
+
+           throw error;
+       }
+
+       return res.json({
+           success: true,
+           operation: "mkdir",
+           profile: cleanProfile,
+           path: cleanPath,
+           data: data
+       });
+   } catch (error){
+       console.error("FOLDER MKDIR ERROR:", error);
+
+       return res.status(500).json({
+           success: false,
+           operation: "mkdir"
+           error: error.message
+       });
+   }
+});
 app.post("/json", async (req, res) => {
    try {
        const {profile, path, command, terminal} = req.body;
 
        if(!profile){
-           return res.satus(400).json({
+           return res.status(400).json({
                success: false,
                error: "profile is required"
            });
