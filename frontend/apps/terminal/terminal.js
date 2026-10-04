@@ -1,68 +1,93 @@
 import "./terminal.css";
 
-const backend = `${import.meta.env.VITE_API_URL || "https://valcon-1.onrender.com"}/json`;
+import { get, on } from "../../core/settings-store.js";
+import { apiUrl } from "../../api.js";
+
+const COMMAND_ENDPOINT = "/json";
 
 export function startTerminal(root) {
-  root.innerHTML = `
-    <div class="terminal">
-      <div class="output"></div>
-    </div>
-  `;
+  const terminal = root.matches(".terminal")
+    ? root
+    : root.querySelector(".terminal");
 
-  const terminal = root.querySelector(".terminal");
-  const output = root.querySelector(".output");
+  if (!terminal) {
+    console.error("Terminal markup is missing a .terminal root");
 
-  let activeInput;
+    return;
+  }
+
+  const output = terminal.querySelector(".output");
+
+  if (!output) {
+    console.error("Terminal markup is missing an .output element");
+
+    return;
+  }
+
+  let activeInput = null;
   let processing = false;
 
-  terminal.addEventListener("click", () => {
-    activeInput?.focus();
-  });
+  function applyTerminalSettings() {
+    terminal.dataset.theme = get("terminal.theme");
 
-  root.addEventListener("windowfocus", () => {
-    activeInput?.focus();
-  });
+    terminal.style.setProperty(
+      "--terminal-font-size",
+      `${get("terminal.fontSize")}px`,
+    );
 
-  function setTheme(theme) {
-    terminal.classList.toggle("light", theme === "light");
+    terminal.style.setProperty(
+      "--terminal-line-height",
+      `${get("terminal.lineHeight")}`,
+    );
+
+    terminal.style.setProperty(
+      "--terminal-font-weight",
+      `${get("terminal.fontWeight")}`,
+    );
+
+    terminal.dataset.cursor = get("terminal.cursor");
+
+    terminal.classList.toggle("cursor-blink", get("terminal.cursorBlink"));
   }
-  const savedTheme = localStorage.getItem("terminal-theme" || "dark");
-
-  setTheme(savedTheme);
-
-  window.addEventListener("terminal-theme-change", (event) => {
-    setTheme(event.detail);
-  });
 
   function scroll() {
     terminal.scrollTop = terminal.scrollHeight;
   }
 
+  function trimScrollback() {
+    const limit = get("terminal.scrollback");
+
+    while (output.childElementCount > limit) {
+      output.firstElementChild.remove();
+    }
+  }
+
   function print(text) {
     const line = document.createElement("div");
 
-    line.style.whiteSpace = "pre-wrap";
+    line.className = "line";
     line.textContent = text;
 
     output.appendChild(line);
+
+    trimScrollback();
     scroll();
   }
 
   async function sendCommand(command) {
-    const response = await fetch(backend, {
+    const response = await fetch(`${apiUrl()}${COMMAND_ENDPOINT}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         profile: "USER",
         path: "",
-        command: command,
+        command,
         terminal: 0,
       }),
     });
-    if (!response.ok){
-      throw new Error(`Server error: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`server returned ${response.status}`);
     }
 
     return response.json();
@@ -86,65 +111,99 @@ export function startTerminal(root) {
     input.type = "text";
     input.autocomplete = "off";
     input.spellcheck = false;
+    input.setAttribute("aria-label", "Terminal input");
 
-    activeInput = input;
+    prompt.textContent = "valcon $ ";
 
-    prompt.textContent = "user@valcon:~$ ";
+    function sync() {
+      const position = input.selectionStart ?? input.value.length;
 
-    row.append(prompt, typed, cursor, after, input);
-    output.appendChild(row);
-
-    function updateInput() {
-      const pos = input.selectionStart ?? input.value.length;
-
-      typed.textContent = input.value.slice(0, pos);
-      after.textContent = input.value.slice(pos);
+      typed.textContent = input.value.slice(0, position);
+      after.textContent = input.value.slice(position);
     }
 
-    input.addEventListener("input", updateInput);
-    input.addEventListener("keyup", updateInput);
-    input.addEventListener("click", updateInput);
+    input.addEventListener("input", sync);
+    input.addEventListener("click", sync);
+    input.addEventListener("keyup", sync);
 
-    input.addEventListener("keydown", async (event) => {
-      if (event.key !== "Enter" || processing) return;
-
+    async function submit() {
       const command = input.value.trim();
 
-      if (!command) return;
+      if (!command || processing) {
+        return;
+      }
 
       processing = true;
       input.disabled = true;
 
+      print(`valcon $ ${command}`);
+
       if (command === "clear") {
-        output.innerHTML = "";
+        output.replaceChildren();
+
         processing = false;
         createInput();
+
         return;
       }
 
       try {
         const data = await sendCommand(command);
-        const result = data.output ?? "";
 
-        if (result) {
-          print(result);
+        if (data?.output) {
+          print(data.output);
         }
       } catch (error) {
-        print(`Backend error: ${error.message}`);
+        print(`error: ${error.message}`);
       }
 
       cursor.remove();
 
       processing = false;
       createInput();
+    }
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+
+      event.preventDefault();
+
+      void submit();
     });
 
-    input.focus();
+    row.append(prompt, typed, cursor, after, input);
+    output.appendChild(row);
+
+    activeInput = input;
+
     scroll();
+    input.focus();
   }
 
-  print("Welcome to VALCON_WEB_TERMINAL");
-  print("Type 'help' if you need any commands..");
+  terminal.addEventListener("mousedown", () => {
+    if (get("terminal.copyOnSelect")) {
+      return;
+    }
+
+    activeInput?.focus();
+  });
+
+  root.addEventListener("windowfocus", () => {
+    activeInput?.focus();
+  });
+
+  applyTerminalSettings();
+
+  on("terminal.theme", applyTerminalSettings);
+  on("terminal.fontSize", applyTerminalSettings);
+  on("terminal.lineHeight", applyTerminalSettings);
+  on("terminal.fontWeight", applyTerminalSettings);
+  on("terminal.cursor", applyTerminalSettings);
+  on("terminal.cursorBlink", applyTerminalSettings);
+
+  print("VALCON terminal — type 'help' for commands.");
 
   createInput();
 }

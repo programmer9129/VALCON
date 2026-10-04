@@ -1,99 +1,475 @@
 <div class="settings">
-  <div class="settings-sidebar">
+  <aside class="settings-sidebar">
+    <div class="settings-brand">
+      <strong>VALCON</strong>
+      <span>Settings</span>
+    </div>
+
     <button class="settings-tab active" data-section="appearance">
-      <wa-icon name="paintbrush"></wa-icon>
-      <span>Appearance</span>
+      Appearance
     </button>
 
-    <button class="settings-tab" data-section="keyboard">
-      <wa-icon name="keyboard"></wa-icon>
-      <span>Keyboard</span>
+    <button class="settings-tab" data-section="desktop">Desktop & Dock</button>
+
+    <button class="settings-tab" data-section="windows">Windows</button>
+
+    <button class="settings-tab" data-section="shortcuts">Shortcuts</button>
+
+    <button class="settings-tab" data-section="terminal">Terminal</button>
+
+    <button class="settings-tab" data-section="music">Music</button>
+
+    <button class="settings-tab" data-section="network">Network</button>
+
+    <button class="settings-tab" data-section="account">Account</button>
+
+    <button class="settings-tab" data-section="storage">Storage</button>
+
+    <button class="settings-tab" data-section="accessibility">
+      Accessibility
     </button>
 
-    <!-- NEW -->
-    <button class="settings-tab" data-section="account">
-      <wa-icon name="person"></wa-icon>
-      <span>Account</span>
-    </button>
-  </div>
+    <button class="settings-tab" data-section="privacy">Privacy</button>
 
-  <div class="settings-content">
-    <section id="appearance" class="settings-section active">
+    <button class="settings-tab" data-section="about">About</button>
+  </aside>
+
+  <main class="settings-content">
+    <!-- APPEARANCE -->
+
+    <section class="settings-section active" id="appearance">
       <h1>Appearance</h1>
+      <p class="settings-description">
+        Personalise how VALCON looks. Changes apply immediately.
+      </p>
 
-      <div class="setting">
-        <div>
-          <h2>Terminal Theme</h2>
-          <p>Choose the theme for your terminal:</p>
+      <div class="settings-card">
+        <label>
+          <span>Theme</span>
+
+          <select id="themeSelect">
+            <option value="system">System</option>
+
+            <option value="dark">Dark</option>
+
+            <option value="light">Light</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Accent</span>
+
+          <input id="accentInput" type="color" />
+        </label>
+
+        <div class="settings-presets">
+          <button data-accent="#1793d1">Blue</button>
+
+          <button data-accent="#8b5cf6">Purple</button>
+
+          <button data-accent="#22c55e">Green</button>
+
+          <button data-accent="#f59e0b">Amber</button>
         </div>
-
-        <wa-select id="terminalTheme" value="dark">
-          <wa-option value="dark">Dark</wa-option>
-          <wa-option value="light">Light</wa-option>
-        </wa-select>
       </div>
 
-      <div class="setting wallpaper-setting">
-        <div class="setting-info">
-          <h2>Desktop Wallpaper</h2>
-          <p>Choose an image to use as your wallpaper.</p>
-        </div>
+      <div class="settings-card">
+        <h2>Wallpaper</h2>
 
-        <div class="wallpaper-controls">
+        <div id="wallPreview" class="wallpaper-preview"></div>
+
+        <div class="settings-row">
+          <button id="wallButton">Choose image</button>
+
+          <button id="wallRemove" class="secondary">Remove</button>
+
           <input id="wallInput" type="file" accept="image/*" hidden />
-
-          <wa-button id="wallButton" appearance="outlined">
-            Choose Image
-          </wa-button>
-
-          <span id="wallFileName"> No image selected </span>
         </div>
 
-        <div id="wallStatus"></div>
+        <p id="wallStatus"></p>
 
-        <div id="wallPreview">
-          <span>No wallpaper selected</span>
-        </div>
+        <label>
+          <span>Fit</span>
+
+          <select id="wallFit">
+            <option value="cover">Cover</option>
+
+            <option value="contain">Contain</option>
+
+            <option value="center">Center</option>
+
+            <option value="tile">Tile</option>
+
+            <option value="stretch">Stretch</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Dim</span>
+
+          <input id="wallDim" type="range" min="0" max="100" />
+        </label>
+
+        <label>
+          <span>Blur</span>
+
+          <input id="wallBlur" type="range" min="0" max="30" />
+        </label>
+      </div>
+
+      <div class="settings-card">
+        <h2>Window appearance</h2>
+
+        <label>
+          <span>Opacity</span>
+
+          <input id="windowOpacity" type="range" min="50" max="100" />
+        </label>
+
+        <label>
+          <span>Corner radius</span>
+
+          <input id="windowRadius" type="range" min="0" max="32" />
+        </label>
+
+        <label>
+          <span>Font scale</span>
+
+          <input id="fontScale" type="range" min="80" max="150" />
+        </label>
       </div>
     </section>
 
-    <section id="keyboard" class="settings-section">
-      <h1>Keyboard</h1>
+    <section class="settings-section" id="desktop">
+      <h1>Desktop & Dock</h1>
 
-      <div class="setting">
-        <div>
-          <h2>For Dock Toggle</h2>
-          <p>
-            Your keyboard shortcut for hiding or showing the dock (needed if
-            Super + D is mapped with something else in your PC)
-          </p>
-        </div>
+      <div class="settings-card">
+        <label>
+          <span>Dock position</span>
 
-        <wa-button id="dockShortcut" appearance="outlined">
-          Super + D
-        </wa-button>
+          <select id="dockPosition">
+            <option value="bottom">Bottom</option>
+
+            <option value="left">Left</option>
+
+            <option value="right">Right</option>
+
+            <option value="top">Top</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Dock size</span>
+
+          <input id="dockSize" type="range" min="40" max="100" />
+        </label>
+
+        <label>
+          <span>Dock gap</span>
+
+          <input id="dockGap" type="range" min="0" max="30" />
+        </label>
+
+        <label>
+          <span>Dock opacity</span>
+
+          <input id="dockOpacity" type="range" min="20" max="100" />
+        </label>
+
+        <label class="check">
+          <input id="dockAutoHide" type="checkbox" />
+
+          <span> Auto-hide dock </span>
+        </label>
       </div>
     </section>
 
-    <!-- NEW -->
-    <section id="account" class="settings-section">
+    <section class="settings-section" id="windows">
+      <h1>Windows</h1>
+
+      <div class="settings-card">
+        <label>
+          <span>Default width</span>
+
+          <input id="defaultWidth" type="number" min="300" max="2000" />
+        </label>
+
+        <label>
+          <span>Default height</span>
+
+          <input id="defaultHeight" type="number" min="200" max="1500" />
+        </label>
+
+        <label class="check">
+          <input id="rememberGeometry" type="checkbox" />
+
+          <span> Remember window positions and sizes </span>
+        </label>
+
+        <button id="resetGeometry">Reset window geometry</button>
+      </div>
+    </section>
+
+    <!-- SHORTCUTS -->
+
+    <section class="settings-section" id="shortcuts">
+      <h1>Shortcuts</h1>
+
+      <div class="settings-card">
+        <label>
+          <span>Dock toggle</span>
+
+          <button id="dockShortcut" class="shortcut-recorder">Super + D</button>
+        </label>
+
+        <p class="settings-hint">
+          Click the shortcut and press the keys you want to use.
+        </p>
+      </div>
+    </section>
+
+    <section class="settings-section" id="terminal">
+      <h1>Terminal</h1>
+
+      <div class="settings-card">
+        <label>
+          <span>Theme</span>
+
+          <select id="terminalTheme">
+            <option value="dark">Dark</option>
+
+            <option value="light">Light</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Font size</span>
+
+          <input id="terminalFontSize" type="number" min="9" max="30" />
+        </label>
+
+        <label>
+          <span>Line height</span>
+
+          <input
+            id="terminalLineHeight"
+            type="number"
+            min="1"
+            max="2.5"
+            step="0.05"
+          />
+        </label>
+
+        <label class="check">
+          <input id="terminalCursorBlink" type="checkbox" />
+
+          <span> Cursor blink </span>
+        </label>
+
+        <label class="check">
+          <input id="terminalCopySelect" type="checkbox" />
+
+          <span> Copy on select </span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section" id="music">
+      <h1>Music</h1>
+
+      <div class="settings-card">
+        <label>
+          <span>Default volume</span>
+
+          <input id="musicVolume" type="range" min="0" max="1" step="0.01" />
+        </label>
+
+        <label class="check">
+          <input id="musicShuffle" type="checkbox" />
+
+          <span> Shuffle </span>
+        </label>
+
+        <label>
+          <span>Repeat</span>
+
+          <select id="musicRepeat">
+            <option value="off">Off</option>
+
+            <option value="one">Repeat one</option>
+
+            <option value="all">Repeat all</option>
+          </select>
+        </label>
+
+        <label class="check">
+          <input id="musicAutoplay" type="checkbox" />
+
+          <span> Autoplay </span>
+        </label>
+
+        <label class="check">
+          <input id="musicResume" type="checkbox" />
+
+          <span> Resume playback </span>
+        </label>
+
+        <button id="clearMusicLibrary" class="danger">
+          Clear music library
+        </button>
+      </div>
+    </section>
+
+    <section class="settings-section" id="network">
+      <h1>Network</h1>
+
+      <div class="settings-card">
+        <label>
+          <span>API URL</span>
+
+          <input id="apiUrl" type="url" placeholder="https://..." />
+        </label>
+
+        <label>
+          <span>Bridge URL</span>
+
+          <input
+            id="bridgeUrl"
+            type="url"
+            placeholder="http://localhost:3000"
+          />
+        </label>
+
+        <label>
+          <span>Music upload URL</span>
+
+          <input id="musicUploadUrl" type="url" />
+        </label>
+
+        <label>
+          <span>Music play URL</span>
+
+          <input id="musicPlayUrl" type="url" />
+        </label>
+
+        <button id="networkTest">Test connection</button>
+
+        <p id="networkStatus"></p>
+      </div>
+    </section>
+
+    <section class="settings-section" id="account">
       <h1>Account</h1>
 
-      <div class="setting">
-        <div class="setting-info">
-          <h2>Username</h2>
-          <p id="accountUsername">Unknown</p>
-        </div>
-      </div>
+      <div class="settings-card account-card">
+        <div class="account-header">
+          <img id="accountAvatar" class="account-avatar" alt="Account avatar" />
 
-      <div class="setting">
-        <div class="setting-info">
-          <h2>Session</h2>
-          <p>Log out of VALCON on this browser.</p>
+          <div>
+            <strong id="accountUsername"> User </strong>
+
+            <span id="accountMemberSince"></span>
+          </div>
         </div>
 
-        <wa-button id="logoutBtn" appearance="outlined"> Log out </wa-button>
+        <label>
+          <span>Display name</span>
+
+          <input id="displayName" type="text" />
+        </label>
+
+        <label>
+          <span>Bio</span>
+
+          <textarea id="accountBio" rows="3"></textarea>
+        </label>
+
+        <div class="settings-row">
+          <button id="avatarButton">Change avatar</button>
+
+          <button id="removeAvatar" class="secondary">Remove</button>
+
+          <input id="avatarInput" type="file" accept="image/*" hidden />
+        </div>
+
+        <button id="saveProfile">Save profile</button>
+
+        <hr />
+
+        <button id="logoutBtn" class="danger">Sign out</button>
       </div>
     </section>
-  </div>
+
+    <section class="settings-section" id="storage">
+      <h1>Storage</h1>
+
+      <div class="settings-card">
+        <div id="storageStats"></div>
+
+        <button id="exportSettings">Export settings</button>
+
+        <button id="importSettings">Import settings</button>
+
+        <input
+          id="settingsFile"
+          type="file"
+          accept=".json,application/json"
+          hidden
+        />
+
+        <button id="resetSettings" class="danger">Reset all settings</button>
+      </div>
+    </section>
+
+    <section class="settings-section" id="accessibility">
+      <h1>Accessibility</h1>
+
+      <div class="settings-card">
+        <label class="check">
+          <input id="reduceMotion" type="checkbox" />
+
+          <span> Reduce motion </span>
+        </label>
+
+        <label class="check">
+          <input id="reduceTransparency" type="checkbox" />
+
+          <span> Reduce transparency </span>
+        </label>
+
+        <label class="check">
+          <input id="highContrast" type="checkbox" />
+
+          <span> High contrast </span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section" id="privacy">
+      <h1>Privacy</h1>
+
+      <div class="settings-card">
+        <p>
+          VALCON stores its local settings, account data and music library
+          metadata in browser storage.
+        </p>
+
+        <button id="clearLocalData">Clear local settings</button>
+      </div>
+    </section>
+
+    <section class="settings-section" id="about">
+      <h1>About VALCON</h1>
+
+      <div class="settings-card about-card">
+        <strong>VALCON Web OS</strong>
+
+        <span> Local-first browser desktop environment. </span>
+
+        <span> Version 1.0.0 </span>
+
+        <span id="runtimeInfo"></span>
+      </div>
+    </section>
+  </main>
 </div>

@@ -1,7 +1,28 @@
-const UPLOAD_URL = import.meta.env.VITE_MUSIC_UPLOAD_URL || "";
-const PLAY_BASE = import.meta.env.VITE_MUSIC_PLAY_URL || "";
+import { get } from "./core/settings-store.js";
 
 let token = null;
+
+function trimTrailingSlash(value) {
+  return value.replace(/\/+$/, "");
+}
+
+function configured(key, envKey) {
+  const stored = String(get(key) || "").trim();
+
+  if (stored) {
+    return trimTrailingSlash(stored);
+  }
+
+  return trimTrailingSlash(String(import.meta.env[envKey] || "").trim());
+}
+
+export function apiUrl() {
+  return configured("network.apiUrl", "VITE_API_URL");
+}
+
+export function bridgeUrl() {
+  return configured("network.bridgeUrl", "VITE_BRIDGE_URL");
+}
 
 export async function loadToken() {
   try {
@@ -14,29 +35,37 @@ export async function loadToken() {
 }
 
 function headers() {
-  const out = {};
+  const output = {};
 
   if (token) {
-    out.Authorization = `Bearer ${token}`;
+    output.Authorization = `Bearer ${token}`;
   }
 
-  return out;
+  return output;
+}
+
+function getUploadUrl() {
+  return configured("network.musicUploadUrl", "VITE_MUSIC_UPLOAD_URL");
+}
+
+function getPlayBase() {
+  return configured("network.musicPlayUrl", "VITE_MUSIC_PLAY_URL");
 }
 
 function absolute(url) {
-  if (/^https?:\/\//.test(url)) {
+  if (/^https?:\/\//i.test(url)) {
     return url;
   }
 
-  return PLAY_BASE
-    ? `${PLAY_BASE.replace(/\/$/, "")}/${url.replace(/^\//, "")}`
-    : url;
+  const base = getPlayBase();
+
+  return base ? `${base.replace(/\/$/, "")}/${url.replace(/^\//, "")}` : url;
 }
 
 function extractUrl(xhr) {
   const contentType = xhr.getResponseHeader("content-type") || "";
 
-  if (/^(audio|video)\//.test(contentType)) {
+  if (/^(audio|video)\//i.test(contentType)) {
     return xhr.responseURL || null;
   }
 
@@ -61,12 +90,18 @@ function extractUrl(xhr) {
 
     return candidate ? absolute(candidate) : null;
   } catch {
-    return /^https?:\/\//.test(text) ? text : null;
+    return /^https?:\/\//i.test(text) ? text : null;
   }
 }
 
+export function uploadConfigured() {
+  return Boolean(configured("network.musicUploadUrl", "VITE_MUSIC_UPLOAD_URL"));
+}
+
 export function upload(file, filename, onProgress) {
-  if (!UPLOAD_URL) {
+  const uploadUrl = getUploadUrl();
+
+  if (!uploadUrl) {
     return Promise.resolve({
       ok: false,
       url: null,
@@ -76,10 +111,10 @@ export function upload(file, filename, onProgress) {
 
   return new Promise((resolve) => {
     const params = new URLSearchParams({
-      filename: filename,
+      filename,
     });
 
-    let endpoint = UPLOAD_URL;
+    let endpoint = uploadUrl;
 
     if (!/[?&]filename=/.test(endpoint)) {
       endpoint += `${endpoint.includes("?") ? "&" : "?"}${params}`;
@@ -96,9 +131,9 @@ export function upload(file, filename, onProgress) {
 
     const authHeaders = headers();
 
-    Object.keys(authHeaders).forEach((key) => {
+    for (const key of Object.keys(authHeaders)) {
       xhr.setRequestHeader(key, authHeaders[key]);
-    });
+    }
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
@@ -110,7 +145,7 @@ export function upload(file, filename, onProgress) {
       const ok = xhr.status >= 200 && xhr.status < 300;
 
       resolve({
-        ok: ok,
+        ok,
         url: ok ? extractUrl(xhr) : null,
         reason: ok ? null : `server returned ${xhr.status}`,
       });
@@ -137,9 +172,11 @@ export function upload(file, filename, onProgress) {
 }
 
 export function remoteUrlFor(filename) {
-  if (!PLAY_BASE) {
+  const base = getPlayBase();
+
+  if (!base) {
     return null;
   }
 
-  return `${PLAY_BASE.replace(/\/$/, "")}/${encodeURIComponent(filename)}`;
+  return `${base.replace(/\/$/, "")}/${encodeURIComponent(filename)}`;
 }

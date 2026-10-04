@@ -1,115 +1,168 @@
 import "@awesome.me/webawesome/dist/styles/webawesome.css";
+
 import "@awesome.me/webawesome/dist/components/page/page.js";
 import "@awesome.me/webawesome/dist/components/icon/icon.js";
 import "@awesome.me/webawesome/dist/components/button/button.js";
 import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
 
+import terminalMarkup from "./apps/terminal/terminal.html?raw";
+import settingsMarkup from "./apps/settings/settings.html?raw";
+import musicMarkup from "./apps/music/music.html?raw";
+
 import { startMusic } from "./apps/music/music.js";
-import { AppManager } from "./app-manager.js";
-import { bootAuth } from "./auth.js";
 import { startTerminal } from "./apps/terminal/terminal.js";
 import { startSettings } from "./apps/settings/settings.js";
 
-import "./apps/terminal/terminal.css";
-import "./apps/settings/settings.css";
+import { bootAuth } from "./auth.js";
+
+import { appmanager } from "./app-manager.js";
+
+import { get, on } from "./core/settings-store.js";
+
+import { initTheme } from "./core/theme.js";
+
+function shortcutFromEvent(event) {
+  const keys = [];
+
+  if (event.metaKey) keys.push("Super");
+  if (event.ctrlKey) keys.push("Ctrl");
+  if (event.altKey) keys.push("Alt");
+  if (event.shiftKey) keys.push("Shift");
+
+  if (!["Meta", "Control", "Alt", "Shift"].includes(event.key)) {
+    keys.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
+  }
+
+  return keys.join(" + ");
+}
+
+function sameShortcut(a, b) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function isTypingTarget(target) {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target?.isContentEditable
+  );
+}
+
+function applyDockSettings(dock) {
+  if (!dock) return;
+
+  const position = get("desktop.dockPosition");
+
+  dock.dataset.position = position;
+  dock.style.setProperty("--dock-size", `${get("desktop.dockSize")}px`);
+  dock.style.setProperty("--dock-gap", `${get("desktop.dockGap")}px`);
+  dock.style.setProperty(
+    "--dock-opacity",
+    `${get("desktop.dockOpacity") / 100}`,
+  );
+  dock.classList.toggle("auto-hidden", get("desktop.dockAutoHide"));
+}
 
 async function boot() {
+  initTheme();
+
   await bootAuth();
 
   const app = document.getElementById("app");
 
-  app.style.display = "";
-
-  const terminalApp = document.getElementById("terminalApp");
-  const settingsApp = document.getElementById("settingsApp");
-  const musicApp = document.getElementById("musicApp");
-  const dock = document.getElementById("dock");
-  const apps = new AppManager();
-
-  const savedWallpaper = localStorage.getItem("wallpaper");
-
-  if (savedWallpaper) {
-    document.getElementById("wallpaper").style.backgroundImage =
-      `linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url("${savedWallpaper}")`;
+  if (!app) {
+    throw new Error("#app not found");
   }
 
-  let dockHidden = false;
+  app.style.display = "";
 
-  apps.register({
+  const dock = document.getElementById("dock");
+
+  appmanager.register({
     id: "terminal",
     title: "Terminal",
-    html: "./apps/terminal/terminal.html",
+    html: terminalMarkup,
     width: "700px",
     height: "450px",
+    minwidth: "420px",
+    minheight: "220px",
     single: true,
     start: startTerminal,
   });
 
-  apps.register({
+  appmanager.register({
     id: "settings",
     title: "Settings",
-    html: "./apps/settings/settings.html",
-    width: "650px",
-    height: "500px",
+    html: settingsMarkup,
+    width: "760px",
+    height: "600px",
+    minwidth: "520px",
+    minheight: "380px",
     single: true,
     start: startSettings,
   });
 
-  apps.register({
+  appmanager.register({
     id: "music",
     title: "Music",
-    html: "./apps/music/music.html",
-    width: "520px",
-    height: "620px",
+    html: musicMarkup,
+    width: "560px",
+    height: "650px",
+    minwidth: "320px",
+    minheight: "420px",
     single: true,
     start: startMusic,
   });
 
-  terminalApp.addEventListener("click", () => {
-    apps.open("terminal");
-  });
+  const launch = (id) => {
+    const win = document.getElementById(`${id}App`);
 
-  settingsApp.addEventListener("click", () => {
-    apps.open("settings");
-  });
+    win?.addEventListener("click", () => {
+      appmanager.open(id).catch((error) => {
+        console.error(`Could not open ${id}:`, error);
+      });
+    });
+  };
 
-  musicApp.addEventListener("click", () => {
-    apps.open("music");
-  });
+  launch("terminal");
+  launch("settings");
+  launch("music");
+
+  applyDockSettings(dock);
+
+  let dockHidden = false;
 
   function toggleDock() {
     dockHidden = !dockHidden;
-    dock.classList.toggle("hidden", dockHidden);
-  }
-  function getShortcut(event) {
-    const keys = [];
 
-    if (event.metaKey) keys.push("Super");
-    if (event.ctrlKey) keys.push("Ctrl");
-    if (event.altKey) keys.push("Alt");
-    if (event.shiftKey) keys.push("Shift");
-
-    if (!["Meta", "Control", "Alt", "Shift"].includes(event.key)) {
-      keys.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
-    }
-    return keys.join(" + ");
-  }
-  function matchesShortcut(event) {
-    const saved = localStorage.getItem("dock-shortcut") || "Super + D";
-    return getShortcut(event) === saved;
+    dock?.classList.toggle("hidden", dockHidden);
   }
 
   window.addEventListener("keydown", (event) => {
-    if (matchesShortcut(event)) {
+    if (isTypingTarget(event.target)) {
+      return;
+    }
+
+    if (sameShortcut(shortcutFromEvent(event), get("desktop.dockShortcut"))) {
       event.preventDefault();
+
       toggleDock();
     }
   });
 
-  window.addEventListener("dock-shortcut-change", () => {
+  on("desktop.dockPosition", () => applyDockSettings(dock));
+  on("desktop.dockSize", () => applyDockSettings(dock));
+  on("desktop.dockGap", () => applyDockSettings(dock));
+  on("desktop.dockOpacity", () => applyDockSettings(dock));
+  on("desktop.dockAutoHide", () => applyDockSettings(dock));
+  on("desktop.dockShortcut", () => {
     dockHidden = false;
-    dock.classList.remove("hidden");
+
+    dock?.classList.remove("hidden");
   });
 }
 
-boot();
+boot().catch((error) => {
+  console.error("VALCON boot failed:", error);
+});
