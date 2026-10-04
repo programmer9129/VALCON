@@ -1,0 +1,67 @@
+.music {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #e6e6e6;
+}
+
+.music-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.music-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #333;
+}
+
+.music-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #262626;
+}
+
+.music-list li.playing {
+  background: #1f3a5f;
+}
+
+.music-list li .meta {
+  opacity: 0.6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.music-player {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid #333;
+  padding-top: 8px;
+}
+
+.music-now,
+.music-seek,
+.music-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.music-now {
+  justify-content: space-between;
+}
+
+.music-seek input {
+  flex: 1;
+}

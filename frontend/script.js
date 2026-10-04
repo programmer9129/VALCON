@@ -4,6 +4,7 @@ import "@awesome.me/webawesome/dist/components/icon/icon.js";
 import "@awesome.me/webawesome/dist/components/button/button.js";
 import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
 
+import { startMusic } from "./apps/music/music.js";
 import { AppManager } from "./app-manager.js";
 import { bootAuth } from "./auth.js";
 import { startTerminal } from "./apps/terminal/terminal.js";
@@ -21,6 +22,7 @@ async function boot() {
 
   const terminalApp = document.getElementById("terminalApp");
   const settingsApp = document.getElementById("settingsApp");
+  const musicApp = document.getElementById("musicApp");
   const dock = document.getElementById("dock");
   const apps = new AppManager();
 
@@ -53,12 +55,26 @@ async function boot() {
     start: startSettings,
   });
 
+  apps.register({
+    id: "music",
+    title: "Music",
+    html: "./apps/music/music.html",
+    width: "520px",
+    height: "620px",
+    single: true,
+    start: startMusic,
+  });
+
   terminalApp.addEventListener("click", () => {
     apps.open("terminal");
   });
 
   settingsApp.addEventListener("click", () => {
     apps.open("settings");
+  });
+
+  musicApp.addEventListener("click", () => {
+    apps.open("music");
   });
 
   function toggleDock() {
