@@ -51,13 +51,17 @@ export function startTerminal(root) {
   async function sendCommand(command) {
     const response = await fetch(backend, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
+        profile: "USER",
+        path: "",
         command: command,
-        terminal: 1,
+        terminal: 0,
       }),
     });
-
-    if (!response.ok) {
+    if (!response.ok){
       throw new Error(`Server error: ${response.status}`);
     }
 
