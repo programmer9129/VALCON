@@ -446,6 +446,37 @@ app.post("/json", async (req, res) => {
        });
    }
 });
+app.get("/json", (req, res) => {
+    res.json({
+        success: true,
+        service: "node",
+        message: "Node /json route is not working"
+    });
+});
+
+app.post("/json", async (req, res) => {
+   try{
+       const response = await fetch("https://valcon-r5ti.onrender.com/json",
+           {
+               method: "POST",
+               headers: {
+                   "Content-Type": "application/json"
+               },
+               body: JSON.stringify(req.body)
+           }
+       );
+       const data = await response.json();
+       return res.status(response.status).json(data);
+   } catch (error){
+       console.error("json bridge error:", error);
+
+       return res.status(502).json({
+           success: false,
+           error: "C++ backend unavailable",
+           details: error.message
+       });
+   }
+});
 app.listen(PORT, () =>{
    console.log('bridge is running on port' + PORT);
 });
