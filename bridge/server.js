@@ -403,6 +403,7 @@ app.post("/server_bridge/folders/list", async (req, res) => {
         });
     }
 });
+
 app.post("/server_bridge/folders/mkdir", async (req, res) => {
    try {
        const { profile, path } = req.body;
