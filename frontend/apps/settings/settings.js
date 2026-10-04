@@ -2,6 +2,8 @@ import "@awesome.me/webawesome/dist/styles/webawesome.css";
 
 import "@awesome.me/webawesome/dist/components/button/button.js";
 
+import "./settings.css";
+
 import {
   get,
   set,
@@ -10,6 +12,10 @@ import {
   importJSON,
   storageInfo,
 } from "../../core/settings-store.js";
+
+import { apiUrl } from "../../api.js";
+
+import { appmanager } from "../../app-manager.js";
 
 import {
   getAuth,
@@ -240,6 +246,8 @@ function setupDesktop(root) {
 
   bindValue(root, "#dockGap", "desktop.dockGap", "input");
 
+  bindValue(root, "#dockOpacity", "desktop.dockOpacity", "input");
+
   bindValue(root, "#dockAutoHide", "desktop.dockAutoHide");
 }
 
@@ -251,7 +259,7 @@ function setupWindows(root) {
   bindValue(root, "#rememberGeometry", "windows.rememberGeometry");
 
   $(root, "#resetGeometry")?.addEventListener("click", () => {
-    localStorage.removeItem("valcon.window.geometry");
+    appmanager.forgetGeometry();
   });
 }
 
@@ -260,31 +268,33 @@ function setupShortcut(root) {
 
   if (!button) return;
 
-  button.textContent = get("desktop.dockShortcut");
+  const show = () => {
+    button.textContent = get("desktop.dockShortcut");
+  };
+
+  show();
 
   button.addEventListener("click", () => {
     button.textContent = "Press keys...";
 
     const handler = (event) => {
       event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === "Escape") {
+        window.removeEventListener("keydown", handler, true);
+
+        show();
+
+        return;
+      }
 
       const keys = [];
 
-      if (event.metaKey) {
-        keys.push("Super");
-      }
-
-      if (event.ctrlKey) {
-        keys.push("Ctrl");
-      }
-
-      if (event.altKey) {
-        keys.push("Alt");
-      }
-
-      if (event.shiftKey) {
-        keys.push("Shift");
-      }
+      if (event.metaKey) keys.push("Super");
+      if (event.ctrlKey) keys.push("Ctrl");
+      if (event.altKey) keys.push("Alt");
+      if (event.shiftKey) keys.push("Shift");
 
       if (!["Meta", "Control", "Alt", "Shift"].includes(event.key)) {
         keys.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
@@ -294,19 +304,11 @@ function setupShortcut(root) {
         return;
       }
 
-      const shortcut = keys.join(" + ");
-
-      set("desktop.dockShortcut", shortcut);
-
-      button.textContent = shortcut;
-
-      window.dispatchEvent(
-        new CustomEvent("dock-shortcut-change", {
-          detail: shortcut,
-        }),
-      );
+      set("desktop.dockShortcut", keys.join(" + "));
 
       window.removeEventListener("keydown", handler, true);
+
+      show();
     };
 
     window.addEventListener("keydown", handler, true);
@@ -359,7 +361,7 @@ function setupNetwork(root) {
   $(root, "#networkTest")?.addEventListener("click", async () => {
     const status = $(root, "#networkStatus");
 
-    const base = get("network.apiUrl");
+    const base = apiUrl();
 
     if (!base) {
       status.textContent = "No API URL configured.";
@@ -375,6 +377,7 @@ function setupNetwork(root) {
       const timer = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(base, {
+        method: "GET",
         signal: controller.signal,
       });
 

@@ -1,5 +1,7 @@
 import { get, set, onAny } from "./settings-store.js";
 
+import defaultWallpaper from "../assets/background.jpg";
+
 let mediaQuery = null;
 let mediaListener = null;
 
@@ -56,7 +58,7 @@ function applyTheme() {
 }
 
 function applyWallpaper() {
-  const wallpaper = get("appearance.wallpaper");
+  const wallpaper = get("appearance.wallpaper") || defaultWallpaper;
   const fit = get("appearance.wallpaperFit");
   const dim = get("appearance.wallpaperDim");
   const blur = get("appearance.wallpaperBlur");

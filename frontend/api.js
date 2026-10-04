@@ -2,6 +2,28 @@ import { get } from "./core/settings-store.js";
 
 let token = null;
 
+function trimTrailingSlash(value) {
+  return value.replace(/\/+$/, "");
+}
+
+function configured(key, envKey) {
+  const stored = String(get(key) || "").trim();
+
+  if (stored) {
+    return trimTrailingSlash(stored);
+  }
+
+  return trimTrailingSlash(String(import.meta.env[envKey] || "").trim());
+}
+
+export function apiUrl() {
+  return configured("network.apiUrl", "VITE_API_URL");
+}
+
+export function bridgeUrl() {
+  return configured("network.bridgeUrl", "VITE_BRIDGE_URL");
+}
+
 export async function loadToken() {
   try {
     const auth = await import("./auth.js");
@@ -23,15 +45,11 @@ function headers() {
 }
 
 function getUploadUrl() {
-  return (
-    get("network.musicUploadUrl") || import.meta.env.VITE_MUSIC_UPLOAD_URL || ""
-  );
+  return configured("network.musicUploadUrl", "VITE_MUSIC_UPLOAD_URL");
 }
 
 function getPlayBase() {
-  return (
-    get("network.musicPlayUrl") || import.meta.env.VITE_MUSIC_PLAY_URL || ""
-  );
+  return configured("network.musicPlayUrl", "VITE_MUSIC_PLAY_URL");
 }
 
 function absolute(url) {
@@ -74,6 +92,10 @@ function extractUrl(xhr) {
   } catch {
     return /^https?:\/\//i.test(text) ? text : null;
   }
+}
+
+export function uploadConfigured() {
+  return Boolean(configured("network.musicUploadUrl", "VITE_MUSIC_UPLOAD_URL"));
 }
 
 export function upload(file, filename, onProgress) {

@@ -127,6 +127,8 @@ button {
 
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38) !important;
 
+  overflow: hidden;
+
   backdrop-filter: blur(18px);
 }
 
@@ -168,74 +170,87 @@ button {
 
   padding: 7px;
 
-  background: var(--dock-bg);
+  background: rgb(from var(--dock-bg) r g b / var(--dock-opacity, 0.82));
 
   border: 1px solid var(--border);
+
+  border-radius: 16px;
 
   backdrop-filter: blur(18px);
 
   transition:
-    transform 180ms ease,
+    translate 180ms ease,
     opacity 180ms ease;
 }
 
 #dock[data-position="bottom"] {
   left: 50%;
   bottom: 14px;
-  transform: translateX(-50%);
+  translate: -50% 0;
 }
 
 #dock[data-position="top"] {
   left: 50%;
   top: 14px;
-  transform: translateX(-50%);
+  translate: -50% 0;
 }
 
 #dock[data-position="left"] {
   left: 14px;
   top: 50%;
-  transform: translateY(-50%);
+  translate: 0 -50%;
   flex-direction: column;
 }
 
 #dock[data-position="right"] {
   right: 14px;
   top: 50%;
-  transform: translateY(-50%);
+  translate: 0 -50%;
   flex-direction: column;
 }
 
-#dock.hidden {
+#dock.hidden,
+#dock.auto-hidden {
   opacity: 0;
   pointer-events: none;
 }
 
-#dock button,
 #dock > * {
   width: var(--dock-size, 56px);
   height: var(--dock-size, 56px);
 }
 
-#dock button {
+#dock > * {
+  box-sizing: border-box;
+
   border: 0;
   border-radius: 12px;
 
   background: transparent;
 
+  color: inherit;
+
   display: grid;
   place-items: center;
+
+  padding: 0;
 
   cursor: pointer;
 
   transition:
     background 120ms ease,
-    transform 120ms ease;
+    scale 120ms ease;
 }
 
-#dock button:hover {
+#dock > *:hover {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 
-  transform: translateY(-2px);
+  scale: 1.08;
+}
+
+#dock > *:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .reduce-motion *,
@@ -255,6 +270,170 @@ button {
 
 a {
   color: var(--accent);
+}
+
+#authGate {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  display: grid;
+  place-items: center;
+
+  overflow: auto;
+}
+
+.auth-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+
+  background-color: var(--bg);
+  background-image: url("./assets/background.jpg");
+  background-position: center;
+  background-size: cover;
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.auth-content {
+  position: relative;
+  z-index: 2;
+
+  display: grid;
+  place-items: center;
+
+  padding: 24px;
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  width: min(380px, 100%);
+
+  padding: 28px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--window-radius);
+
+  background: var(--window-bg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+
+  backdrop-filter: blur(20px);
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+
+  text-align: center;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 0.14em;
+}
+
+.auth-brand p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-icon {
+  display: grid;
+  place-items: center;
+
+  width: 52px;
+  height: 52px;
+  margin-bottom: 6px;
+
+  border-radius: 14px;
+
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+
+  color: var(--accent);
+
+  font-size: 24px;
+}
+
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-field input {
+  width: 100%;
+  height: 40px;
+
+  padding: 0 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  background: var(--surface);
+  color: var(--text);
+
+  outline: none;
+}
+
+.auth-field input:focus {
+  border-color: var(--accent);
+}
+
+#authSwitch {
+  padding: 0;
+
+  border: 0;
+
+  background: none;
+
+  color: var(--muted);
+  font-size: 12px;
+
+  text-align: center;
+
+  cursor: pointer;
+}
+
+#authSwitch:hover {
+  color: var(--text);
+}
+
+#authMsg {
+  min-height: 16px;
+  margin: 0;
+
+  color: var(--danger);
+  font-size: 12px;
+
+  text-align: center;
 }
 
 :focus-visible {

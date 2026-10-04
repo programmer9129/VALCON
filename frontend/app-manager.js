@@ -1,7 +1,31 @@
 import WinBox from "winbox/src/js/winbox.js";
 import "winbox/dist/css/winbox.min.css";
 
-import { get, set } from "./core/settings-store.js";
+import { get } from "./core/settings-store.js";
+
+function toPixels(value, relativeTo) {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return NaN;
+  }
+
+  const trimmed = value.trim();
+
+  const numeric = Number.parseFloat(trimmed);
+
+  if (!Number.isFinite(numeric)) {
+    return NaN;
+  }
+
+  if (trimmed.endsWith("%")) {
+    return (numeric / 100) * relativeTo;
+  }
+
+  return numeric;
+}
 
 export class AppManager {
   constructor() {
@@ -51,43 +75,68 @@ export class AppManager {
       return existing;
     }
 
-    const response = await fetch(app.html);
-
-    if (!response.ok) {
-      throw new Error(`Failed to load ${app.html}`);
+    if (typeof app.html !== "string" || !app.html.trim()) {
+      throw new Error(`${id} has no markup`);
     }
 
-    const html = await response.text();
-
-    const parser = new DOMParser();
-
-    const doc = parser.parseFromString(html, "text/html");
+    const doc = new DOMParser().parseFromString(app.html, "text/html");
 
     const content = doc.body.firstElementChild;
 
     if (!content) {
-      throw new Error(`${app.html} has no root element`);
+      throw new Error(`${id} markup has no root element`);
     }
 
     const remembered = get("windows.rememberGeometry")
       ? this.geometry[id]
       : null;
 
-    const width =
-      remembered?.width || app.width || `${get("windows.defaultWidth")}px`;
+    const minwidth = app.minwidth || "300px";
 
-    const height =
-      remembered?.height || app.height || `${get("windows.defaultHeight")}px`;
+    const minheight = app.minheight || "200px";
 
-    const win = new WinBox({
+    const size = this.clampToViewport(
+      {
+        width: remembered?.width ?? app.width ?? `${get("windows.defaultWidth")}px`,
+        height:
+          remembered?.height ?? app.height ?? `${get("windows.defaultHeight")}px`,
+      },
+      { minwidth, minheight },
+    );
+
+    const position = this.clampToViewport(
+      {
+        x: remembered?.x,
+        y: remembered?.y,
+        width: size.width,
+        height: size.height,
+      },
+      { minwidth, minheight },
+    );
+
+    let win = null;
+    let ready = false;
+
+    const lifecycle = (hook) => (payload) => {
+      if (!ready) {
+        return;
+      }
+
+      hook?.(content, win, payload);
+    };
+
+    win = new WinBox({
       title: app.title,
 
-      width,
-      height,
+      width: size.width,
+      height: size.height,
 
-      x: remembered?.x ?? "center",
+      minwidth,
+      minheight,
 
-      y: remembered?.y ?? "center",
+      x: position.x ?? "center",
+
+      y: position.y ?? "center",
 
       root: document.body,
 
@@ -98,25 +147,25 @@ export class AppManager {
       onfocus: () => {
         content.dispatchEvent(new CustomEvent("windowfocus"));
 
-        app.onFocus?.(content, win);
+        lifecycle(app.onFocus)?.();
       },
 
       onminimize: () => {
         content.dispatchEvent(new CustomEvent("windowminimize"));
 
-        app.onMinimize?.(content, win);
+        lifecycle(app.onMinimize)?.();
       },
 
       onmaximize: () => {
         content.dispatchEvent(new CustomEvent("windowmaximize"));
 
-        app.onMaximize?.(content, win);
+        lifecycle(app.onMaximize)?.();
       },
 
       onresize: () => {
         this.rememberWindow(id, win);
 
-        app.onResize?.(content, win);
+        lifecycle(app.onResize)?.();
       },
 
       onmove: () => {
@@ -124,13 +173,17 @@ export class AppManager {
       },
 
       onclose: () => {
+        ready = false;
+
         this.windows.delete(id);
 
         this.rememberWindow(id, win);
 
-        app.onClose?.(content, win);
+        lifecycle(app.onClose)?.();
       },
     });
+
+    ready = true;
 
     try {
       if (app.start) {
@@ -149,6 +202,54 @@ export class AppManager {
     return win;
   }
 
+  clampToViewport(size, limits = {}) {
+    const rootWidth = document.documentElement.clientWidth;
+    const rootHeight = document.documentElement.clientHeight;
+
+    const output = { ...size };
+
+    for (const axis of ["width", "height"]) {
+      const limit = limits[axis === "width" ? "minwidth" : "minheight"];
+
+      let value = toPixels(output[axis], axis === "width" ? rootWidth : rootHeight);
+
+      if (!Number.isFinite(value)) {
+        continue;
+      }
+
+      const min = toPixels(limit, axis === "width" ? rootWidth : rootHeight);
+
+      if (Number.isFinite(min)) {
+        value = Math.max(min, value);
+      }
+
+      output[axis] = `${Math.round(Math.min(value, rootWidth * 0.98))}px`;
+    }
+
+    if (Number.isFinite(output.x) && Number.isFinite(output.y)) {
+      output.x = Math.max(
+        0,
+        Math.min(
+          output.x,
+          Math.max(0, rootWidth - toPixels(output.width, rootWidth)),
+        ),
+      );
+
+      output.y = Math.max(
+        0,
+        Math.min(
+          output.y,
+          Math.max(0, rootHeight - toPixels(output.height, rootHeight)),
+        ),
+      );
+    } else {
+      output.x = null;
+      output.y = null;
+    }
+
+    return output;
+  }
+
   rememberWindow(id, win) {
     if (!get("windows.rememberGeometry")) {
       return;
@@ -156,17 +257,20 @@ export class AppManager {
 
     try {
       this.geometry[id] = {
-        width: win.width || undefined,
-
-        height: win.height || undefined,
-
-        x: win.x || undefined,
-
-        y: win.y || undefined,
+        width: win.width,
+        height: win.height,
+        x: win.x,
+        y: win.y,
       };
 
       this.saveGeometry();
     } catch {}
+  }
+
+  forgetGeometry() {
+    this.geometry = {};
+
+    this.saveGeometry();
   }
 
   close(id) {

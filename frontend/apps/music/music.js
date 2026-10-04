@@ -1,24 +1,36 @@
 import "./music.css";
 
-import { upload, remoteUrlFor, loadToken } from "../../api.js";
+import recordArt from "./background.gif?url";
+
+import {
+  upload,
+  uploadConfigured,
+  remoteUrlFor,
+  loadToken,
+} from "../../api.js";
+import {
+  get as getSetting,
+  set as setSetting,
+  on as onSetting,
+} from "../../core/settings-store.js";
 
 const LIBRARY_KEY = "valcon.music.library";
-const PREFS_KEY = "valcon.music.prefs";
+
+const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|oga|m4a|aac|flac|webm)$/i;
 
 const blobs = new Map();
 const objectUrls = new Map();
 
 const audio = new Audio();
 
+audio.preload = "metadata";
+
 const state = {
   tracks: [],
   filtered: [],
   currentId: null,
   playing: false,
-  shuffle: false,
-  repeat: "off",
   search: "",
-  volume: 1,
   seeking: false,
   uploading: false,
 };
@@ -45,62 +57,42 @@ let recordFreeze = null;
 let emptyVisual = null;
 let libraryCountEl = null;
 
-function loadPrefs() {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY);
+let audioEventsReady = false;
 
-    if (!raw) {
-      return;
-    }
+const volume = () => {
+  const stored = getSetting("music.volume");
 
-    const prefs = JSON.parse(raw);
+  return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 1;
+};
 
-    state.volume =
-      typeof prefs.volume === "number"
-        ? Math.max(0, Math.min(1, prefs.volume))
-        : 1;
+const shuffle = () => Boolean(getSetting("music.shuffle"));
 
-    state.shuffle = Boolean(prefs.shuffle);
-
-    state.repeat =
-      prefs.repeat === "one" || prefs.repeat === "all" ? prefs.repeat : "off";
-  } catch {
-    state.volume = 1;
-    state.shuffle = false;
-    state.repeat = "off";
-  }
-}
-
-function savePrefs() {
-  localStorage.setItem(
-    PREFS_KEY,
-    JSON.stringify({
-      volume: state.volume,
-      shuffle: state.shuffle,
-      repeat: state.repeat,
-    }),
-  );
-}
+const repeat = () => getSetting("music.repeat");
 
 function loadLibrary() {
   try {
-    const raw = localStorage.getItem(LIBRARY_KEY);
+    const parsed = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]");
 
-    if (!raw) {
-      state.tracks = [];
-      return;
-    }
-
-    const parsed = JSON.parse(raw);
-
-    state.tracks = Array.isArray(parsed) ? parsed : [];
+    state.tracks = Array.isArray(parsed)
+      ? parsed.filter((track) => track && track.id && track.filename)
+      : [];
   } catch {
     state.tracks = [];
   }
 }
 
 function saveLibrary() {
-  localStorage.setItem(LIBRARY_KEY, JSON.stringify(state.tracks));
+  try {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(state.tracks));
+
+    return true;
+  } catch (error) {
+    console.error("Could not save the music library:", error);
+
+    setStatus("Library is too large to save locally.");
+
+    return false;
+  }
 }
 
 function parseName(filename) {
@@ -426,7 +418,7 @@ async function play(id) {
 
   audio.src = source;
   audio.currentTime = 0;
-  audio.volume = state.volume;
+  audio.volume = volume();
 
   renderPlayer();
 
@@ -473,7 +465,11 @@ function pickNext() {
     return null;
   }
 
-  if (state.shuffle && state.tracks.length > 1) {
+  if (repeat() === "one" && state.currentId) {
+    return getTrack(state.currentId);
+  }
+
+  if (shuffle() && state.tracks.length > 1) {
     const candidates = state.tracks.filter(
       (track) => track.id !== state.currentId,
     );
@@ -490,11 +486,7 @@ function pickNext() {
   }
 
   if (index >= state.tracks.length - 1) {
-    if (state.repeat === "all") {
-      return state.tracks[0];
-    }
-
-    return null;
+    return repeat() === "all" ? state.tracks[0] : null;
   }
 
   return state.tracks[index + 1];
@@ -503,15 +495,6 @@ function pickNext() {
 function next() {
   if (state.tracks.length === 0) {
     setStatus("Your library is empty.");
-    return;
-  }
-
-  if (state.repeat === "one" && state.currentId) {
-    audio.currentTime = 0;
-
-    audio.play().catch(() => {
-      play(state.currentId);
-    });
 
     return;
   }
@@ -522,6 +505,17 @@ function next() {
     state.playing = false;
     setStatus("End of library.");
     renderPlayer();
+
+    return;
+  }
+
+  if (nextTrack.id === state.currentId) {
+    audio.currentTime = 0;
+
+    void audio.play().catch(() => {
+      setStatus("Playback failed.");
+    });
+
     return;
   }
 
@@ -547,44 +541,36 @@ function prev() {
     return;
   }
 
-  if (state.repeat === "all") {
+  if (repeat() === "all") {
     play(state.tracks[state.tracks.length - 1].id);
     return;
   }
 
   audio.currentTime = 0;
 
-  audio.play().catch(() => {
+  void audio.play().catch(() => {
     play(state.tracks[0].id);
   });
 }
 
 function toggleShuffle() {
-  state.shuffle = !state.shuffle;
+  const next = !shuffle();
 
-  savePrefs();
-  updateModeButtons();
+  setSetting("music.shuffle", next);
 
-  setStatus(state.shuffle ? "Shuffle enabled." : "Shuffle disabled.");
-
-  renderList();
+  setStatus(next ? "Shuffle enabled." : "Shuffle disabled.");
 }
 
 function cycleRepeat() {
-  if (state.repeat === "off") {
-    state.repeat = "all";
-  } else if (state.repeat === "all") {
-    state.repeat = "one";
-  } else {
-    state.repeat = "off";
-  }
+  const order = ["off", "all", "one"];
 
-  savePrefs();
-  updateModeButtons();
+  const next = order[(order.indexOf(repeat()) + 1) % order.length];
 
-  if (state.repeat === "off") {
+  setSetting("music.repeat", next);
+
+  if (next === "off") {
     setStatus("Repeat disabled.");
-  } else if (state.repeat === "all") {
+  } else if (next === "all") {
     setStatus("Repeating all tracks.");
   } else {
     setStatus("Repeating current track.");
@@ -596,88 +582,82 @@ function updateModeButtons() {
     return;
   }
 
-  shuffleButton.classList.toggle("music-mode-active", state.shuffle);
+  const isShuffling = shuffle();
 
-  shuffleButton.title = state.shuffle ? "Shuffle on" : "Shuffle off";
+  shuffleButton.classList.toggle("music-mode-active", isShuffling);
+
+  shuffleButton.title = isShuffling ? "Shuffle on" : "Shuffle off";
+
+  const mode = repeat();
 
   repeatButton.classList.remove("music-mode-active", "music-mode-one");
 
-  if (state.repeat === "off") {
-    repeatButton.innerHTML = `<wa-icon name="repeat"></wa-icon>`;
-
-    repeatButton.title = "Repeat off";
-  } else if (state.repeat === "all") {
-    repeatButton.innerHTML = `<wa-icon name="repeat"></wa-icon>`;
-
-    repeatButton.classList.add("music-mode-active");
-    repeatButton.title = "Repeat all tracks";
-  } else {
+  if (mode === "one") {
     repeatButton.innerHTML = `<span class="repeat-one-icon">1</span>`;
 
     repeatButton.classList.add("music-mode-one");
     repeatButton.title = "Repeat current track";
+
+    return;
+  }
+
+  repeatButton.innerHTML = `<wa-icon name="repeat"></wa-icon>`;
+
+  repeatButton.title = mode === "all" ? "Repeat all tracks" : "Repeat off";
+
+  if (mode === "all") {
+    repeatButton.classList.add("music-mode-active");
   }
 }
 
 async function importFiles(fileList) {
-  const files = Array.from(fileList || []);
+  const files = Array.from(fileList || []).filter(
+    (file) => file.type.startsWith("audio/") || AUDIO_EXTENSIONS.test(file.name),
+  );
 
   if (files.length === 0) {
-    return;
-  }
-
-  const audioFiles = files.filter((file) => {
-    return (
-      file.type.startsWith("audio/") ||
-      /\.(mp3|wav|ogg|oga|m4a|aac|flac|webm)$/i.test(file.name)
-    );
-  });
-
-  if (audioFiles.length === 0) {
     setStatus("No supported audio files selected.");
+
     return;
   }
 
   const existingNames = new Set(
-    state.tracks.map((track) =>
-      String(track.filename || "")
-        .trim()
-        .toLowerCase(),
-    ),
+    state.tracks.map((track) => String(track.filename).toLowerCase()),
   );
 
-  const newFiles = [];
+  const accepted = [];
 
-  for (const file of audioFiles) {
+  let duplicateCount = 0;
+
+  for (const file of files) {
     const filename = safeName(file.name);
     const key = filename.toLowerCase();
 
     if (existingNames.has(key)) {
+      duplicateCount++;
+
       continue;
     }
 
     existingNames.add(key);
-    newFiles.push(file);
+    accepted.push({ file, filename });
   }
 
-  if (newFiles.length === 0) {
+  if (accepted.length === 0) {
     setStatus(
-      audioFiles.length === 1
-        ? "This track is already in your library."
-        : "All selected tracks are already in your library.",
+      duplicateCount === 1
+        ? "That track is already in your library."
+        : `${duplicateCount} tracks are already in your library.`,
     );
 
     return;
   }
 
-  const skippedCount = audioFiles.length - newFiles.length;
-
-  const newTracks = newFiles.map((file) => {
-    const parsed = parseName(file.name);
-
-    return {
-      id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-      filename: safeName(file.name),
+  const added = accepted.map(({ file, filename }) => {
+    const parsed = parseName(filename);
+    const track = {
+      id: crypto.randomUUID(),
+      filename,
       title: parsed.title,
       artist: parsed.artist,
       duration: 0,
@@ -686,38 +666,42 @@ async function importFiles(fileList) {
       progress: 0,
       addedAt: Date.now(),
     };
+
+    blobs.set(track.id, file);
+
+    return track;
   });
 
-  newTracks.forEach((track, index) => {
-    blobs.set(track.id, newFiles[index]);
-    state.tracks.push(track);
-  });
+  state.uploading = true;
+  state.tracks.push(...added);
 
   saveLibrary();
   applyFilter();
   renderPlayer();
 
-  if (skippedCount > 0) {
-    setStatus(
-      `${newTracks.length} new ${
-        newTracks.length === 1 ? "track" : "tracks"
-      } added. ${skippedCount} already in your library.`,
-    );
-  } else {
-    setStatus(
-      `${newTracks.length} ${
-        newTracks.length === 1 ? "track" : "tracks"
-      } added.`,
-    );
+  const summary = [`${added.length} imported`];
+
+  if (duplicateCount) {
+    summary.push(`${duplicateCount} already existed`);
   }
 
-  for (let i = 0; i < newTracks.length; i++) {
-    const track = newTracks[i];
-    const file = newFiles[i];
+  if (!uploadConfigured()) {
+    state.uploading = false;
 
-    state.uploading = true;
+    setStatus(summary.join(" · "));
 
-    setStatus(`Uploading ${i + 1}/${newTracks.length}: ${track.filename}`);
+    renderPlayer();
+
+    return;
+  }
+
+  let failed = 0;
+
+  for (let index = 0; index < added.length; index++) {
+    const track = added[index];
+    const { file } = accepted[index];
+
+    setStatus(`Importing ${track.filename}...`);
 
     const result = await upload(file, track.filename, (progress) => {
       track.progress = progress;
@@ -729,31 +713,23 @@ async function importFiles(fileList) {
 
     if (result.ok) {
       track.remoteUrl = result.url || remoteUrlFor(track.filename);
-
-      setStatus(
-        track.remoteUrl
-          ? `${track.filename} uploaded.`
-          : `${track.filename} uploaded. Local copy kept.`,
-      );
     } else {
-      setStatus(`${track.filename} kept local. Upload failed.`);
+      failed++;
     }
 
     saveLibrary();
-    renderList();
+    applyFilter();
   }
 
   state.uploading = false;
 
-  if (skippedCount > 0 && newTracks.length > 0) {
-    setStatus(
-      `${newTracks.length} new ${
-        newTracks.length === 1 ? "track" : "tracks"
-      } added. ${skippedCount} duplicate${
-        skippedCount === 1 ? "" : "s"
-      } skipped.`,
-    );
+  if (failed) {
+    summary.push(`${failed} kept local`);
   }
+
+  setStatus(summary.join(" · "));
+
+  renderPlayer();
 }
 
 function removeTrack(id) {
@@ -875,17 +851,6 @@ function setupAudioEvents() {
   });
 
   audio.addEventListener("ended", () => {
-    if (state.repeat === "one") {
-      audio.currentTime = 0;
-
-      audio.play().catch(() => {
-        state.playing = false;
-        renderPlayer();
-      });
-
-      return;
-    }
-
     next();
   });
 
@@ -894,12 +859,21 @@ function setupAudioEvents() {
   });
 }
 
+function bindAudioEvents() {
+  if (audioEventsReady) {
+    return;
+  }
+
+  audioEventsReady = true;
+
+  setupAudioEvents();
+}
+
 export function startMusic(win) {
-  root = win;
+  root = win.matches(".music") ? win : win.querySelector(".music") || win;
 
   root.innerHTML = `
-    <div class="music">
-      <div class="music-toolbar">
+    <div class="music-toolbar">
         <div class="music-search-wrap">
           <wa-icon name="search"></wa-icon>
 
@@ -975,7 +949,7 @@ export function startMusic(win) {
         <img
           id="musicRecord"
           class="music-record"
-          src="./apps/music/background.gif"
+          src="${recordArt}"
           alt=""
           draggable="false"
         />
@@ -1120,7 +1094,6 @@ export function startMusic(win) {
       <div id="musicStatus">
         Import music to begin.
       </div>
-    </div>
   `;
 
   listEl = root.querySelector("#musicList");
@@ -1161,11 +1134,10 @@ export function startMusic(win) {
 
   const menuClearSearch = root.querySelector("#musicMenuClearSearch");
 
-  loadPrefs();
   loadLibrary();
 
-  audio.volume = state.volume;
-  volumeEl.value = state.volume;
+  audio.volume = volume();
+  volumeEl.value = String(audio.volume);
 
   applyFilter();
   renderPlayer();
@@ -1222,9 +1194,11 @@ export function startMusic(win) {
   });
 
   volumeEl.addEventListener("input", () => {
-    state.volume = Number(volumeEl.value);
-    audio.volume = state.volume;
-    savePrefs();
+    const next = Number(volumeEl.value);
+
+    audio.volume = Number.isFinite(next) ? next : audio.volume;
+
+    setSetting("music.volume", audio.volume);
   });
 
   seekEl.addEventListener("input", () => {
@@ -1251,26 +1225,53 @@ export function startMusic(win) {
   root.addEventListener("keydown", (event) => {
     if (
       event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLTextAreaElement
+      event.target instanceof HTMLTextAreaElement ||
+      event.target instanceof HTMLButtonElement ||
+      event.target?.isContentEditable
     ) {
       return;
     }
 
     if (event.code === "Space") {
       event.preventDefault();
+
       togglePlay();
+
+      return;
     }
 
     if (event.key === "ArrowRight") {
-      audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+      audio.currentTime = Math.min(
+        Number.isFinite(audio.duration) ? audio.duration : 0,
+        audio.currentTime + 5,
+      );
+
+      updateTimeUI();
+
+      return;
     }
 
     if (event.key === "ArrowLeft") {
       audio.currentTime = Math.max(0, audio.currentTime - 5);
+
+      updateTimeUI();
     }
   });
 
-  setupAudioEvents();
+  bindAudioEvents();
+
+  onSetting("music.volume", (value) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    audio.volume = value;
+
+    volumeEl.value = String(value);
+  });
+
+  onSetting("music.shuffle", updateModeButtons);
+  onSetting("music.repeat", updateModeButtons);
 
   void loadToken();
 
