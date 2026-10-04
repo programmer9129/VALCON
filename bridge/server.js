@@ -440,7 +440,7 @@ app.post("/server_bridge/folders/mkdir", async (req, res) => {
        if (error) {
            if (error.message &&
                (
-                   error.message,toLowerCase().includes("already exists") ||
+                   error.message.toLowerCase().includes("already exists") ||
                    error.message.toLowerCase().includes("duplicate")
                )
            ){
@@ -465,8 +465,8 @@ app.post("/server_bridge/folders/mkdir", async (req, res) => {
 
        return res.status(500).json({
            success: false,
-           operation: "mkdir"
-           error: error.message
+           operation: "mkdir",
+           error: error.message,
        });
    }
 });
