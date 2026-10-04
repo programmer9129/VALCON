@@ -65,9 +65,16 @@ function applyDockSettings(dock) {
 }
 
 async function boot() {
-  initTheme();
 
-  await bootAuth();
+  try {
+    initTheme();
+  } catch (error) {
+  }
+
+  try {
+    await bootAuth();
+  } catch (error) {
+  }
 
   const app = document.getElementById("app");
 

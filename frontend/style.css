@@ -331,6 +331,33 @@ a {
   backdrop-filter: blur(20px);
 }
 
+.auth-submit {
+  width: 100%;
+  padding: 11px 18px;
+
+  border: 1px solid transparent;
+  border-radius: calc(var(--window-radius) * 0.6);
+
+  background: var(--accent);
+  color: #0b0e14;
+
+  font: inherit;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: filter 120ms ease;
+}
+
+.auth-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .auth-brand {
   display: flex;
   flex-direction: column;
