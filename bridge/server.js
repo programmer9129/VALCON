@@ -403,7 +403,49 @@ app.post("/server_bridge/folders/list", async (req, res) => {
         });
     }
 });
+app.post("/json", async (req, res) => {
+   try {
+       const {profile, path, command, terminal} = req.body;
 
+       if(!profile){
+           return res.satus(400).json({
+               success: false,
+               error: "profile is required"
+           });
+       }
+       if (!command) {
+           return res.status(400).json({
+               success: false,
+               error: "command is required"
+           });
+       }
+
+       const response = await fetch("https://valcon-r5ti.onrender.com/json",
+       {
+           method: "POST",
+           headers: {
+               "Content-Type":"application/json"
+           },
+           body: JSON.stringify({
+               profile,
+               path: path || "",
+               command,
+               terminal: terminal || 0
+           })
+       });
+
+       const data = await response.json();
+       return res.status(response.status).json(data);
+   }catch (error) {
+       console.error("json bridge error", error);
+
+       return res.status(502).json({
+           success: false,
+           error: "C++ backend unavailable",
+           details: error.messages
+       });
+   }
+});
 app.listen(PORT, () =>{
    console.log('bridge is running on port' + PORT);
 });

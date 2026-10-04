@@ -1,6 +1,6 @@
 import "./terminal.css";
 
-const backend = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/json`;
+const backend = `${import.meta.env.VITE_API_URL || "https://valcon-1.onrender.com"}/json`;
 
 export function startTerminal(root) {
   root.innerHTML = `
