@@ -1004,7 +1004,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		{
 			return "folder created: " + normalized_path;
 		}
-		return "Folder creation Failed";
+		return "Folder creation Failed" + response ;
 	}
 	if (method == "deldir")
 	{
