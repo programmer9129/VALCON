@@ -23,16 +23,13 @@ using namespace std;
 
 unordered_map<string, bool> profile_echo_modes;
 mutex profile_state_mutex;
-
 const string DATABASE_ADRESS = "DATABASE/";
 
 // defining the session function : change structure if the functions fails to calibrate with the database(like SQLite,SQL)
-string processstrings(string order_commands);//command engine here
 
+string processstrings_profile(string order_commands, const string& profile, string& current_path);//command engine here
 string CALCULATOR(string calc_command);//calcualtor here
-
 int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
-
 string BRIDGERequest(
 	const string& method,
 	const string& profile,
@@ -40,7 +37,6 @@ string BRIDGERequest(
 	const string& content = ""
 );
 //bridge to supabase here 
-
 string FOLDERRequest
 (
 	const string& method,
@@ -50,7 +46,6 @@ string FOLDERRequest
 
 );
 string get_parent_path(const string& path);
-
 bool directory_name_validity(const string& name);
 
 bool validprofile(const string& profile)
