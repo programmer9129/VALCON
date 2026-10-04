@@ -1,3 +1,5 @@
+import _default from "@awesome.me/webawesome/dist/styles/component/form-control.styles.js";
+
 const USERS_KEY = "valcon.users";
 
 let currentUser = null;
@@ -47,16 +49,16 @@ export async function register(username, password) {
 
   const key = username.toLowerCase();
 
-  if (user[key]) {
+  if (users[key]) {
     throw new Error("Your username is already taken");
   }
 
   const nacl = makeNacl();
 
-  const hash = await sha256(salt + ":" + password);
+  const hash = await sha256(nacl + ":" + password);
 
   users[key] = {
-    salt,
+    nacl,
     hash,
   };
 
@@ -66,19 +68,20 @@ export async function register(username, password) {
 export async function login(username, password) {
   username = username.trim();
   const users = readUsers();
-  const user = users[user.toLowerCase()];
+  const key = username.toLowerCase();
+  const user = users[key];
 
   if (!user) {
     throw new Error("Wrong username or password");
   }
 
-  const hash = await sha256(user.salt + ":" + password);
+  const hash = await sha256(user.nacl + ":" + password);
 
   if (hash !== user.hash) {
     throw new Error("Wrong username or password");
   }
 
-  const token = await sha256(user.salt + ":" + username);
+  const token = await sha256(user.nacl + ":" + username);
 
   currentUser = {
     username,
@@ -95,4 +98,76 @@ export function getAuth() {
 export function logout() {
   currentUser = null;
   location.reload();
+}
+
+export function bootAuth() {
+  return new Promise((resolve) => {
+    const gate = document.getElementById("authGate");
+    const user = document.getElementById("authUser");
+    const pass = document.getElementById("authPass");
+    const submit = document.getElementById("authSubmit");
+    const switchBtn = document.getElementById("authSwitch");
+    const msg = document.getElementById("authMsg");
+    const authWallpaper = document.querySelector(".auth-wallpaper");
+
+    const savedWallpaper = localStorage.getItem("wallpaper");
+
+    if (authWallpaper && savedWallpaper) {
+      authWallpaper.style.backgroundImage = `url("${savedWallpaper}")`;
+    }
+
+    let mode = hasAnyUser() ? "login" : "register";
+    function render() {
+      const registering = mode === "register";
+      submit.textContent = registering ? "Register" : "Log in";
+      switchBtn.textContent = registering
+        ? "Already registered? Log in"
+        : "No account? Register";
+      msg.textContent = "";
+      pass.value = "";
+      user.focus();
+      pass.autocommplete = registering ? "new-password" : "current-password";
+    }
+
+    switchBtn.addEventListener("click", () => {
+      mode = mode === "register" ? "login" : "register";
+      render();
+    });
+
+    gate.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const username = user.value.trim();
+
+      const password = pass.value;
+
+      if (!username || !password) {
+        msg.textContent = "Username and password are required";
+
+        return;
+      }
+
+      msg.textContent = "";
+
+      submit.disabled = true;
+      msg.textContent = "Working...";
+
+      try {
+        if (mode === "register") {
+          await register(username, password);
+        }
+
+        await login(username, password);
+
+        gate.remove();
+
+        resolve(currentUser);
+      } catch (err) {
+        msg.textContent = err.message;
+        submit.disabled = false;
+        submit.textContent = mode === "register" ? "Register" : "Log in";
+      }
+    });
+    render();
+  });
 }

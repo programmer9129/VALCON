@@ -5,8 +5,21 @@ import "@awesome.me/webawesome/dist/components/button/button.js";
 import "@awesome.me/webawesome/dist/components/select/select.js";
 import "@awesome.me/webawesome/dist/components/option/option.js";
 import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
+import { logout, getAuth } from "../../auth.js";
 
 export function startSettings(win) {
+  const logoutBtn = root.querySelector("#logoutBtn");
+  const username = root.querySelector("#accountUsername");
+
+  const auth = getAuth();
+
+  if (auth) {
+    username.textContent = auth.username;
+  }
+
+  logoutBtn.addEventListener("click", () => {
+    logout();
+  });
   const tabs = win.querySelectorAll(".settings-tab");
   const sections = win.querySelectorAll(".settings-section");
 
