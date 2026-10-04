@@ -45,7 +45,7 @@ string FOLDERRequest
 	const string& new_name = ""
 
 );
-string get_parent_path(const string& path);
+string get_parent_Path(const string& path);
 bool directory_name_validity(const string& name);
 
 bool validprofile(const string& profile)
@@ -180,7 +180,7 @@ string join_relative_path(string& current_path, const string& name)
 	return current + "/" + child;
 }
 
-bool derectory_name_validity(const string& name)
+bool directory_name_validity(const string& name)
 {
 	if (name.empty() || name == "." || name == "..")
 	{
@@ -480,11 +480,6 @@ string processstrings_profile(string order_commands, const string& profile, stri
 		return FOLDERRequest("list", profile, current_path);
 	}
 
-	if (ichy_file_nameworks == "super_list")
-	{
-		return FOLDERRequest("super_list", profile, "");
-	}
-
 	if (ichy_file_nameworks.rfind("dir/rename : ", 0) == 0)
 	{
 		string new_name = ichy_file_nameworks.substr(13);
@@ -501,7 +496,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 			return " the profile directory cant be renamed..";
 		}
 
-		string parent_path = get_parent_path(old_path);
+		string parent_path = get_parent_Path(old_path);
 		string new_path = join_relative_path(parent_path, new_name);
 		string result = FOLDERRequest("rename", profile, old_path, new_path);
 
@@ -644,6 +639,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 		return BRIDGERequest("delete", profile, target_path);
 		
 	}
+	/*
 	if (ichy_file_nameworks.rfind("lsfile", 0) == 0)//LIST CODE
 	{
 		string result_of_list = BRIDGERequest("list", profile, current_path);
@@ -701,7 +697,11 @@ string processstrings_profile(string order_commands, const string& profile, stri
 			furnished_list += to_string(file_count) + " files";
 		}
 		return furnished_list;
-	}
+	}*/
+	
+	//blocked file listing due to un depedency but keepin it for tests
+
+
 	else
 	{
 		return "no command found :(";
@@ -906,6 +906,8 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		return "invalid target path.";
 	}
 
+	CURL* curl = curl_easy_init();
+
 	if (!curl)
 	{
 		return "initialization failed";
@@ -916,7 +918,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 	const string bridge_base_url = "https://valcon-1.onrender.com";
 
 	string normalized_path = normalize_path(path);
-	string json = "{\"profile\":\"" + escape_json(profile) + "\",\path\":\"" + escape_json(normalized_path) + "\"";
+	string json = "{\"profile\":\"" + escape_json(profile) + "\",\"path\":\"" + escape_json(normalized_path) + "\"";
 
 	if (!new_name.empty())
 	{
@@ -942,7 +944,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		url = bridge_base_url + "/server_bridge/folders/check";
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELD, json.c_str());
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
 	}
 	else if (method == "deldir")
 	{
@@ -959,13 +961,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
 	}
-	else if (method == "super_list")
-	{
-		url = bridge_base_url + "/server_bridge/folders/super-list";
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
+	
 	else if (method == "rename")
 	{
 		url = bridge_base_url + "/server_bridge/folders/rename";
@@ -985,7 +981,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
 
-	curl_slist result = curl_easy_perform(curl);
+	CURLcode result = curl_easy_perform(curl);
 	if (result != CURLE_OK)
 	{
 		response = "Bridge error: " + string(curl_easy_strerror(result));
@@ -1027,6 +1023,119 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		}
 
 		return "Folder rename failed";
+	}
+	if (method == "list")
+	{
+		size_t output_start = response.find("\"output\":\"");
+		if (output_start == string::npos)
+		{
+			return
+				"\n"
+				" ================================================================== \n"
+				"|                       DIRECTORY ERROR                            |\n"
+				" ================================================================== \n"
+				" -->  Could not load directory.";
+		}
+		output_start += 10;
+
+		string output;
+		bool escaped = false;
+
+		for (size_t i = output_start; i < response.size(); i++)
+		{
+			char c = response[i];
+			if (escaped)
+			{
+				if (c == 'n')
+				{
+					output += '\n';
+				}
+				else if (c == 'r')
+				{
+					output += '\r';
+				}
+				else if (c == 't')
+				{
+					output += '\t';
+				}
+				else if (c == '\\')
+				{
+					output += '\\';
+				}
+				else if (c == '"')
+				{
+					output += '"';
+				}
+				else
+				{
+					output += c;
+				}
+				escaped = false;
+			}
+			else
+			{
+				if (c == '\\')
+				{
+					escaped = true;
+				}
+				else if (c == '"')
+				{
+					break;
+				}
+				else
+				{
+					output += c;
+				}
+			}
+		}
+		while (!output.empty() && (output.front() == '\n' || output.front() == '\r' || output.front() == ' '))
+		{
+			output.erase(output.begin());
+		}
+
+		while (!output.empty() && (output.back() == '\n' || output.back() == '\r' || output.back() == ' '))
+		{
+			output.pop_back();
+		}
+
+		string display_path = normalize_path(path);
+
+		replace(
+			display_path.begin(), display_path.end(), '/', '\\'
+		);
+
+		string title;
+		if (display_path.empty())
+		{
+			title = profile;
+		}
+		else
+		{
+			title - profile + "\\" + display_path;
+		}
+
+		string furnished_list =
+			"/n"
+			" ================================================================== \n"
+			"|                          VALCON FILESYSTEM                       |\n"
+			" ================================================================== \n"
+			"\n"
+			"\U0001F4C1 " + title + "\n"
+			" |\n";
+
+		if (output.empty())
+		{
+			furnished_list += " |____ (empty directory) \n"
+		}
+		else
+		{
+			furnished_list += output + "\n";
+		}
+
+		furnished_list +=
+			"\n
+			"|_____________________________________________________________________|";
+		return furnished_list;
 	}
 
 	return response;
