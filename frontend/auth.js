@@ -1,6 +1,5 @@
-import _default from "@awesome.me/webawesome/dist/styles/component/form-control.styles.js";
-
 const USERS_KEY = "valcon.users";
+const SESSION_KEY = "valcon.session";
 
 let currentUser = null;
 
@@ -10,6 +9,10 @@ function readUsers() {
   } catch {
     return {};
   }
+}
+
+function writeUsers(users) {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
 function toHex(buffer) {
@@ -34,6 +37,51 @@ function makeNacl() {
   return toHex(bytes.buffer);
 }
 
+function makeTokenPayload(username, expiresAt) {
+  return `${username}:${expiresAt}:${crypto.randomUUID()}`;
+}
+
+function getUserRecord(username) {
+  const users = readUsers();
+
+  return users[username.toLowerCase()] || null;
+}
+
+function saveSession(session) {
+  currentUser = session;
+
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch {}
+}
+
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+
+    if (!raw) {
+      return null;
+    }
+
+    const session = JSON.parse(raw);
+
+    if (!session || !session.username || !session.token || !session.expiresAt) {
+      return null;
+    }
+
+    if (Date.now() >= Number(session.expiresAt)) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+
+    currentUser = session;
+
+    return session;
+  } catch {
+    return null;
+  }
+}
+
 export function hasAnyUser() {
   return Object.keys(readUsers()).length > 0;
 }
@@ -42,11 +90,14 @@ export async function register(username, password) {
   username = username.trim();
 
   if (!username || !password) {
-    throw new Error("username and password is required");
+    throw new Error("Username and password are required");
+  }
+
+  if (username.length < 2) {
+    throw new Error("Username must be at least 2 characters");
   }
 
   const users = readUsers();
-
   const key = username.toLowerCase();
 
   if (users[key]) {
@@ -54,19 +105,26 @@ export async function register(username, password) {
   }
 
   const nacl = makeNacl();
-
   const hash = await sha256(nacl + ":" + password);
 
   users[key] = {
     nacl,
     hash,
+    createdAt: Date.now(),
+    profile: {
+      displayName: username,
+      avatar: "",
+      bio: "",
+      updatedAt: Date.now(),
+    },
   };
 
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  writeUsers(users);
 }
 
 export async function login(username, password) {
   username = username.trim();
+
   const users = readUsers();
   const key = username.toLowerCase();
   const user = users[key];
@@ -81,56 +139,240 @@ export async function login(username, password) {
     throw new Error("Wrong username or password");
   }
 
-  const token = await sha256(user.nacl + ":" + username);
+  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
 
-  currentUser = {
-    username,
+  const token = await sha256(makeTokenPayload(username, expiresAt));
+
+  const session = {
+    username: key,
     token,
+    expiresAt,
   };
+
+  saveSession(session);
+
+  return session;
+}
+
+export function getAuth() {
+  if (!currentUser) {
+    restoreSession();
+  }
 
   return currentUser;
 }
 
-export function getAuth() {
-  return currentUser;
+export function getProfile() {
+  const auth = getAuth();
+
+  if (!auth) {
+    return null;
+  }
+
+  const user = getUserRecord(auth.username);
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    displayName: user.profile?.displayName || auth.username,
+
+    avatar: user.profile?.avatar || "",
+
+    bio: user.profile?.bio || "",
+
+    memberSince: user.createdAt || Date.now(),
+
+    updatedAt: user.profile?.updatedAt || user.createdAt || Date.now(),
+  };
+}
+
+export function updateProfile(patch) {
+  const auth = getAuth();
+
+  if (!auth) {
+    throw new Error("Not logged in");
+  }
+
+  const users = readUsers();
+  const key = auth.username;
+  const user = users[key];
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  user.profile = {
+    displayName: patch.displayName ?? user.profile?.displayName ?? key,
+
+    avatar: patch.avatar ?? user.profile?.avatar ?? "",
+
+    bio: patch.bio ?? user.profile?.bio ?? "",
+
+    updatedAt: Date.now(),
+  };
+
+  users[key] = user;
+
+  writeUsers(users);
+
+  window.dispatchEvent(
+    new CustomEvent("profile-change", {
+      detail: getProfile(),
+    }),
+  );
+
+  return getProfile();
 }
 
 export function logout() {
   currentUser = null;
+
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
+
   location.reload();
 }
 
+export async function changePassword(oldPassword, newPassword) {
+  const auth = getAuth();
+
+  if (!auth) {
+    throw new Error("Not logged in");
+  }
+
+  const users = readUsers();
+  const user = users[auth.username];
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const oldHash = await sha256(user.nacl + ":" + oldPassword);
+
+  if (oldHash !== user.hash) {
+    throw new Error("Current password is incorrect");
+  }
+
+  user.hash = await sha256(user.nacl + ":" + newPassword);
+
+  users[auth.username] = user;
+
+  writeUsers(users);
+}
+
+export function deleteCurrentAccount() {
+  const auth = getAuth();
+
+  if (!auth) {
+    throw new Error("Not logged in");
+  }
+
+  const users = readUsers();
+
+  delete users[auth.username];
+
+  writeUsers(users);
+
+  localStorage.removeItem(SESSION_KEY);
+
+  currentUser = null;
+
+  location.reload();
+}
+
+export async function resizeAvatar(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    throw new Error("Please select an image");
+  }
+
+  if (file.type === "image/svg+xml") {
+    throw new Error("SVG avatars are not supported");
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("Avatar must be smaller than 10 MB");
+  }
+
+  const bitmap = await createImageBitmap(file);
+
+  const size = Math.min(bitmap.width, bitmap.height);
+
+  const canvas = document.createElement("canvas");
+
+  canvas.width = 256;
+  canvas.height = 256;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(
+    bitmap,
+    (bitmap.width - size) / 2,
+    (bitmap.height - size) / 2,
+    size,
+    size,
+    0,
+    0,
+    256,
+    256,
+  );
+
+  return canvas.toDataURL("image/webp", 0.85);
+}
+
 export function bootAuth() {
+  restoreSession();
+
   return new Promise((resolve) => {
-    const gate = document.getElementById("authGate");
-    const user = document.getElementById("authUser");
-    const pass = document.getElementById("authPass");
-    const submit = document.getElementById("authSubmit");
-    const switchBtn = document.getElementById("authSwitch");
-    const msg = document.getElementById("authMsg");
-    const authWallpaper = document.querySelector(".auth-wallpaper");
+    const existing = getAuth();
 
-    const savedWallpaper = localStorage.getItem("wallpaper");
-
-    if (authWallpaper && savedWallpaper) {
-      authWallpaper.style.backgroundImage = `url("${savedWallpaper}")`;
+    if (existing) {
+      resolve(existing);
+      return;
     }
 
+    const gate = document.getElementById("authGate");
+
+    if (!gate) {
+      resolve(null);
+      return;
+    }
+
+    const user = document.getElementById("authUser");
+
+    const pass = document.getElementById("authPass");
+
+    const submit = document.getElementById("authSubmit");
+
+    const switchBtn = document.getElementById("authSwitch");
+
+    const msg = document.getElementById("authMsg");
+
     let mode = hasAnyUser() ? "login" : "register";
+
     function render() {
       const registering = mode === "register";
+
       submit.textContent = registering ? "Register" : "Log in";
+
       switchBtn.textContent = registering
         ? "Already registered? Log in"
         : "No account? Register";
+
       msg.textContent = "";
+
       pass.value = "";
+
+      pass.autocomplete = registering ? "new-password" : "current-password";
+
       user.focus();
-      pass.autocommplete = registering ? "new-password" : "current-password";
     }
 
     switchBtn.addEventListener("click", () => {
       mode = mode === "register" ? "login" : "register";
+
       render();
     });
 
@@ -147,8 +389,6 @@ export function bootAuth() {
         return;
       }
 
-      msg.textContent = "";
-
       submit.disabled = true;
       msg.textContent = "Working...";
 
@@ -157,17 +397,18 @@ export function bootAuth() {
           await register(username, password);
         }
 
-        await login(username, password);
+        const session = await login(username, password);
 
         gate.remove();
 
-        resolve(currentUser);
-      } catch (err) {
-        msg.textContent = err.message;
+        resolve(session);
+      } catch (error) {
+        msg.textContent = error.message || "Authentication failed";
+
         submit.disabled = false;
-        submit.textContent = mode === "register" ? "Register" : "Log in";
       }
     });
+
     render();
   });
 }

@@ -1,4 +1,5 @@
 import "./terminal.css";
+import { get, on } from "../../core/settings-store.js";
 
 const backend = `${import.meta.env.VITE_API_URL || "https://valcon-1.onrender.com"}/json`;
 

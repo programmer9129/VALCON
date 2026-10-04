@@ -1,35 +1,65 @@
-* {
-  box-sizing: border-box;
+:root {
+  --bg: #080a0f;
+  --surface: #11151d;
+  --surface-raised: #181e28;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --text: #f4f7fb;
+  --muted: #9da7b6;
+  --bright: #ffffff;
+
+  --accent: #1793d1;
+  --danger: #ef4444;
+
+  --window-bg: rgba(17, 21, 29, 0.94);
+  --window-header-bg: rgba(23, 29, 39, 0.96);
+  --dock-bg: rgba(20, 24, 32, 0.84);
+
+  --ui-scale: 1;
+  --window-opacity: 0.94;
+  --window-radius: 12px;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
-:root {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --border: #21262d;
-  --text: #c9d1d9;
-  --muted: #8b949e;
-  --bright: #f0f6fc;
-  --blue: #58a6ff;
-  --green: #238636;
+html[data-theme="light"] {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-raised: #f5f7fa;
+  --border: rgba(0, 0, 0, 0.12);
 
-  --wa-font-family-body: monospace;
-  --wa-font-family-heading: monospace;
+  --text: #171a1f;
+  --muted: #606a78;
+  --bright: #000000;
 
-  --blue: #58a6ff;
-  --wa-color-neutral-fill-normal: var(--surface);
-  --wa-color-neutral-border-quiet: var(--border);
-  --wa-color-neutral-on-quiet: var(--muted);
-  --wa-color-neutral-10: var(--bright);
-  --wa-color-success-fill-normal: var(--green);
+  --window-bg: rgba(255, 255, 255, 0.94);
+  --window-header-bg: rgba(245, 247, 250, 0.96);
+  --dock-bg: rgba(255, 255, 255, 0.82);
+}
 
-  --wa-tooltip-background-color: #000;
-  --wa-tooltip-content-color: #fff;
-  --wa-tooltip-border-color: #000;
-  --wa-tooltip-border-radius: 6px;
-  --wa-tooltip-font-size: 13px;
+html.high-contrast {
+  --border: currentColor;
+  --text: #ffffff;
+  --muted: #e0e0e0;
+}
 
-  --wa-border-radius-scale: 0.6;
-  --wa-space-scale: 0.9;
+html[data-theme="light"].high-contrast {
+  --text: #000000;
+  --muted: #202020;
+}
+
+html.monospace-ui {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+html {
+  font-size: calc(16px * var(--ui-scale));
 }
 
 html,
@@ -40,424 +70,210 @@ body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: monospace;
 }
 
-#app,
-#app::part(base),
-#app::part(page),
-#app::part(main) {
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  background: var(--bg);
+* {
+  box-sizing: border-box;
 }
 
-#desktop {
-  position: relative;
-  width: 100%;
-  height: 100%;
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
   overflow: hidden;
-  background: var(--bg);
 }
 
 #wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+
+  background-color: var(--bg);
+  background-position: center;
+  background-repeat: no-repeat;
+
+  filter: blur(var(--wallpaper-blur, 0px));
+
+  transform: scale(calc(1 + (var(--wallpaper-blur, 0px) * 0.005)));
+}
+
+#wallpaper::after {
+  content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)),
-    url("./assets/background.jpg") center / cover no-repeat;
+
+  background: rgba(0, 0, 0, var(--wallpaper-dim, 0.25));
+
+  pointer-events: none;
+}
+
+.valcon-window {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--window-radius) !important;
+
+  background: var(--window-bg) !important;
+
+  color: var(--text) !important;
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38) !important;
+
+  backdrop-filter: blur(18px);
+}
+
+.valcon-window .wb-header {
+  background: var(--window-header-bg) !important;
+
+  color: var(--text) !important;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.valcon-window .wb-body {
+  background: var(--window-bg) !important;
+
+  color: var(--text) !important;
+}
+
+.valcon-window .wb-title {
+  color: var(--text) !important;
+}
+
+.valcon-window .wb-control {
+  color: var(--muted) !important;
+}
+
+.valcon-window .wb-control:hover {
+  color: var(--text) !important;
 }
 
 #dock {
-  position: absolute;
-  z-index: 1000;
+  position: fixed;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: var(--dock-gap, 8px);
+
+  padding: 7px;
+
+  background: var(--dock-bg);
+
+  border: 1px solid var(--border);
+
+  backdrop-filter: blur(18px);
+
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+#dock[data-position="bottom"] {
   left: 50%;
   bottom: 14px;
   transform: translateX(-50%);
+}
 
-  display: flex;
-  align-items: flex-end;
-  gap: 7px;
+#dock[data-position="top"] {
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+}
 
-  padding: 7px 9px;
+#dock[data-position="left"] {
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
 
-  background: rgba(35, 35, 38, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 18px;
-
-  box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-
-  transition:
-    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 200ms ease;
+#dock[data-position="right"] {
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
 }
 
 #dock.hidden {
-  transform: translateX(-50%) translateY(130%);
   opacity: 0;
   pointer-events: none;
 }
 
-#dock wa-button {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  padding: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 12px;
-
-  color: #f5f5f7;
-
-  transition:
-    transform 140ms ease,
-    background 140ms ease;
+#dock button,
+#dock > * {
+  width: var(--dock-size, 56px);
+  height: var(--dock-size, 56px);
 }
 
-#dock wa-button:hover {
-  transform: translateY(-6px) scale(1.12);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-#dock wa-button:active {
-  transform: translateY(-3px) scale(1.05);
-}
-
-#dock wa-icon {
-  font-size: 22px;
-}
-
-.winbox {
-  border-radius: 12px !important;
-  overflow: hidden;
-  background: rgba(30, 30, 30, 0.92) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
-}
-
-.winbox .wb-title {
-  background: rgba(45, 45, 45, 0.88) !important;
-  color: #f5f5f7 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-}
-
-.winbox .wb-header {
-  height: 38px !important;
-  background: rgba(35, 35, 35, 0.82) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-.winbox .wb-icon {
-  color: #f5f5f7 !important;
-}
-
-.winbox .wb-control {
-  color: #b8b8b8 !important;
-}
-
-.winbox .wb-control:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-.winbox .wb-title {
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-}
-
-.winbox {
-  animation: window-open 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.winbox .wb-body {
-  background: transparent;
-  overflow: clip;
-}
-
-@keyframes window-open {
-  from {
-    opacity: 0;
-    transform: scale(0.94);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-#authGate {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  overflow: hidden;
-
-  margin: 0;
-  padding: 0;
-
-  background: #0b0e14;
-
-  color: #f5f5f7;
-
-  font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
-    sans-serif;
-}
-
-.auth-wallpaper {
-  position: absolute;
-  inset: 0;
-
-  background: url("./assets/background.jpg") center / cover no-repeat;
-
-  transform: scale(1.02);
-
-  filter: saturate(0.9);
-}
-
-.auth-overlay {
-  position: absolute;
-  inset: 0;
-
-  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.42));
-
-  backdrop-filter: blur(8px) saturate(90%);
-  -webkit-backdrop-filter: blur(8px) saturate(90%);
-}
-
-.auth-content {
-  position: relative;
-  z-index: 1;
-
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 24px;
-}
-
-.auth-card {
-  width: 310px;
-
-  padding: 28px 28px 24px;
-
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-
-  background: rgba(28, 28, 30, 0.72);
-
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 16px;
-
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-
-  backdrop-filter: blur(28px) saturate(125%);
-  -webkit-backdrop-filter: blur(28px) saturate(125%);
-}
-
-.auth-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  margin-bottom: 5px;
-}
-
-.auth-icon {
-  width: 44px;
-  height: 44px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin-bottom: 11px;
-
-  background: rgba(255, 255, 255, 0.1);
-
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 12px;
-
-  color: #f5f5f7;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 5px 18px rgba(0, 0, 0, 0.2);
-}
-
-.auth-icon wa-icon {
-  font-size: 20px;
-}
-
-.auth-brand h1 {
-  margin: 0;
-
-  color: #f5f5f7;
-
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-}
-
-.auth-brand p {
-  margin: 4px 0 0;
-
-  color: rgba(255, 255, 255, 0.52);
-
-  font-size: 11px;
-}
-
-.auth-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-}
-
-.auth-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.auth-field label {
-  padding-left: 1px;
-
-  color: rgba(255, 255, 255, 0.68);
-
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.auth-card input {
-  width: 100%;
-  height: 38px;
-
-  padding: 0 11px;
-
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 8px;
-
-  outline: none;
-
-  background: rgba(0, 0, 0, 0.22);
-
-  color: #f5f5f7;
-
-  font-family: inherit;
-  font-size: 13px;
-
-  transition:
-    background 140ms ease,
-    border-color 140ms ease,
-    box-shadow 140ms ease;
-}
-
-.auth-card input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-
-.auth-card input:hover {
-  background: rgba(0, 0, 0, 0.28);
-
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.auth-card input:focus {
-  background: rgba(0, 0, 0, 0.32);
-
-  border-color: rgba(88, 166, 255, 0.75);
-
-  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.15);
-}
-
-#authSubmit {
-  width: 100%;
-
-  margin-top: 2px;
-
-  --wa-form-control-height: 38px;
-
-  --wa-color-brand-fill-normal: #1793d1;
-  --wa-color-brand-fill-hover: #1b9ddd;
-  --wa-color-brand-fill-active: #1484bd;
-
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-#authSwitch {
-  align-self: center;
-
-  margin: -2px 0 0;
-  padding: 3px;
-
+#dock button {
   border: 0;
+  border-radius: 12px;
 
   background: transparent;
 
-  color: rgba(255, 255, 255, 0.55);
-
-  font-family: inherit;
-  font-size: 11px;
+  display: grid;
+  place-items: center;
 
   cursor: pointer;
 
-  transition: color 120ms ease;
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
 }
 
-#authSwitch:hover {
-  color: rgba(255, 255, 255, 0.85);
+#dock button:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+
+  transform: translateY(-2px);
 }
 
-#authSwitch:focus-visible {
-  outline: 2px solid rgba(88, 166, 255, 0.45);
-  outline-offset: 3px;
-
-  border-radius: 4px;
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
 }
 
-#authMsg {
-  min-height: 16px;
-
-  margin: -4px 0 0;
-
-  color: rgba(255, 255, 255, 0.55);
-
-  font-size: 11px;
-  line-height: 1.4;
-
-  text-align: center;
-
-  overflow-wrap: anywhere;
+.reduce-transparency .valcon-window,
+.reduce-transparency #dock {
+  backdrop-filter: none;
+  background: var(--surface) !important;
 }
 
-@media (max-width: 480px) {
-  .auth-content {
-    padding: 18px;
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  #dock[data-position="bottom"],
+  #dock[data-position="top"] {
+    max-width: calc(100vw - 20px);
+    overflow-x: auto;
   }
+}
 
-  .auth-card {
-    width: min(310px, 100%);
-
-    padding: 25px 22px 21px;
+@media (max-height: 550px) {
+  #dock[data-position="left"],
+  #dock[data-position="right"] {
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
   }
 }
