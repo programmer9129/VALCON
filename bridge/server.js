@@ -142,22 +142,28 @@ app.get("/server_bridge", (req, res) => {
     });
 })
 
-app.get("/server_bridge/cpp", async (req ,res) =>
-{
-   try{
-       const response = await fetch(ID_BACKEND_ADRESS);
+app.get("/server_bridge/cpp", async (req, res) => {
+    try {
+        const response = await fetch(ID_BACKEND_ADRESS);
 
-       const data = await response.json();
-       res.json({
-          success: true,
-          node: "node is working",
-          cpp: data
-       });
-   }
-   catch(err){
-       console.log(err);
-       console.log('C++ brain is unable to connect to the bridge');
-   }
+        const data = await response.text();
+
+        res.json({
+            success: true,
+            node: "node is working",
+            cpp: data
+        });
+
+    } catch (err) {
+        console.error("C++ CONNECTION ERROR:", err);
+
+        res.status(502).json({
+            success: false,
+            node: "node is working",
+            cpp: "C++ backend unavailable",
+            error: err.message
+        });
+    }
 });
 app.get("/server_bridge/supabase", async (req, res) =>{
     try {
