@@ -1111,7 +1111,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		}
 		else
 		{
-			title - profile + "\\" + display_path;
+			title + "/" + profile + "/" + display_path;
 		}
 
 		string furnished_list =
@@ -1125,7 +1125,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 
 		if (output.empty())
 		{
-			furnished_list += " |____ (empty directory) \n"
+			furnished_list += " |____ (empty directory) \n";
 		}
 		else
 		{
@@ -1133,7 +1133,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		}
 
 		furnished_list +=
-			"\n
+			"\n"
 			"|_____________________________________________________________________|";
 		return furnished_list;
 	}
