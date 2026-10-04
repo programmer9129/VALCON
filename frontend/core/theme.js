@@ -24,14 +24,30 @@ function getResolvedTheme() {
 }
 
 function applyTheme() {
+
   const html = document.documentElement;
   const resolved = getResolvedTheme();
+    theme: get("appearance.theme"),
+    accent: get("appearance.accent"),
+    fontScale: get("appearance.fontScale"),
+    opacity: get("appearance.windowOpacity"),
+    radius: get("appearance.windowRadius"),
+    highContrast: get("appearance.highContrast"),
+    monospace: get("appearance.monospace"),
+    reduceMotion: get("appearance.reduceMotion"),
+    reduceTransparency: get("appearance.reduceTransparency"),
+  });
 
   html.dataset.theme = resolved;
 
   html.style.setProperty("--accent", get("appearance.accent"));
 
-  html.style.setProperty("--ui-scale", `${get("appearance.fontScale") / 100}`);
+  const scale = get("appearance.fontScale");
+
+  html.style.setProperty(
+    "--ui-scale",
+    `${Math.min(Math.max(scale, 80), 130) / 100}`,
+  );
 
   html.style.setProperty(
     "--window-opacity",
@@ -54,7 +70,17 @@ function applyTheme() {
 
   html.classList.toggle("monospace-ui", get("appearance.monospace"));
 
-  applyWallpaper();
+  try {
+    applyWallpaper();
+  } catch (error) {
+    throw error;
+  }
+    htmlTheme: html.dataset.theme,
+    accentVar: html.style.getPropertyValue("--accent"),
+    scaleVar: html.style.getPropertyValue("--ui-scale"),
+    htmlClasses: html.className,
+    fontSizePx: getComputedStyle(html).fontSize,
+  });
 }
 
 function applyWallpaper() {
@@ -105,12 +131,18 @@ export function initTheme() {
   mediaQuery.addEventListener?.("change", mediaListener);
 
   onAny((detail) => {
+
     if (detail.key.startsWith("appearance.")) {
       applyTheme();
     }
   });
 
-  applyTheme();
+  try {
+    applyTheme();
+  } catch (error) {
+
+    throw error;
+  }
 }
 
 export function setTheme(theme) {
