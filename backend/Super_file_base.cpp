@@ -1,5 +1,5 @@
 ﻿// Super_file_base.cpp : Defines the entry point for the application.
-//
+//making the user Auth and password service including the password hashing
 
 #include "Super_file_base.h"
 #include "crow.h"
@@ -11,41 +11,22 @@
 #include <cmath>
 #include <curl/curl.h>
 
-//start making user Auth 
-
 #include <functional>
 #include <stdexcept>
 #include <cctype>
 #include <sstream>
 #include <iomanip>
-#include <iomanip>
-#include <random>
 #include <unordered_map>
 #include <mutex>
-#include <chrono>
 
 using namespace std;
 
-bool echo_mode = false;
+unordered_map<string, bool> profile_echo_modes;
+mutex profile_state_mutex;
 
-// defining the session function : change structure if the functions fails to calibrate with the database(like SQLite,SQL)
-struct ValconSession
-{
-	string user_id_name;
-
-	string current_path; // the path of the user 
-	bool echo_mode = false;
-
-	chrono::steady_clock::time_point last_used;
-};
-
-unordered_map<string, ValconSession> Active_sessions;
-mutex session_mutex; //session mutex to prevent unwanted conditions like race or smthn
-mutex registration_mutex; // registration mutex to prevent race conditions
-
-const chrono::minutes SESSION_TIME(1440);
 const string DATABASE_ADRESS = "DATABASE/";
 
+// defining the session function : change structure if the functions fails to calibrate with the database(like SQLite,SQL)
 string processstrings(string order_commands);//command engine here
 
 string CALCULATOR(string calc_command);//calcualtor here
@@ -54,17 +35,202 @@ int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here
 
 string BRIDGERequest(
 	const string& method,
-	const string& filename,
+	const string& profile,
+	const string& path,
 	const string& content = ""
 );
 //bridge to supabase here 
 
-string processstrings_USER(const string& command, const string& token);// token system for striing processior
-string create_session(const string& user_id_name); // session code for user authentication
+string FOLDERRequest
+(
+	const string& method,
+	const string& profile,
+	const string& path,
+	const string& new_name = ""
 
-bool validuser(const string& username);
-bool validpassword(const string& password);
+);
+string get_parent_path(const string& path);
 
+bool directory_name_validity(const string& name);
+
+bool validprofile(const string& profile)
+{
+	if (profile.empty() || profile.length() > 64)
+	{
+		return false;
+	}
+	for (char c : profile)
+	{
+		unsigned char CC = static_cast <unsigned char>(c);
+
+		if (!isalnum(CC) && c != '_' && c != '-')
+		{
+			return false; 
+		}
+	}
+	return true; 
+}
+string normalize_path(string path)
+{
+	replace(path.begin(), path.end(), '\\', '/');
+
+	string result;
+	bool previous_slash = false;
+
+	for (char c : path)
+	{
+		if (c == '/')
+		{
+			if (previous_slash)
+			{
+				continue;
+			}
+			previous_slash = true;
+		}
+		else
+		{
+			previous_slash = false;
+		}
+		result += c;
+	}
+
+	while (!result.empty() && result.front() == '/')
+	{
+		result.erase(result.begin());
+	}
+	while (!result.empty() && result.back() == '/')
+	{
+		result.pop_back();
+	}
+	return result;
+}
+
+bool validrelativepath(const string& raw_path)
+{
+	string path = normalize_path(raw_path);
+
+	if (path.length() > 1024)
+	{
+		return false;
+	}
+	if (path.empty())
+	{
+		return true;
+	}
+	if (path.front() == '/' || (path.length() >= 2 && isalpha(static_cast<unsigned char> (path[0])) && path[1] == ':'))
+	{
+		return false;
+	}
+
+	string component;
+
+	for (size_t i = 0; i <= path.size(); i++)
+	{
+		if (i == path.size() || path[i] == '/')
+		{
+			if (component.empty() || component == "." || component == "..")
+			{
+				return false;
+			}
+
+			for (char c : component)
+			{
+				if(iscntrl(static_cast<unsigned char>(c)))
+				{
+					return false;
+				}
+			}
+			component.clear();
+		}
+		else
+		{
+			component += path[i];
+		}
+	}
+	return true;
+}
+
+string profile_storage_path(const string& profile, const string& relative_path)
+{
+	if (!validprofile(profile) || !validrelativepath(relative_path))
+	{
+		return "";
+	}
+
+	string path = normalize_path(relative_path);
+	string result = DATABASE_ADRESS + profile + "/Desktop/" + profile;
+
+	if (!path.empty())
+	{
+		result += "/" + path;
+	}
+
+	return result;
+}
+
+string join_relative_path(string& current_path, const string& name)
+{
+	string current = normalize_path(current_path);
+	string child = normalize_path(name);
+
+	if (child.empty())
+	{
+		return current;
+	}
+	if (current.empty())
+	{
+		return child;
+	}
+
+	return current + "/" + child;
+}
+
+bool derectory_name_validity(const string& name)
+{
+	if (name.empty() || name == "." || name == "..")
+	{
+		return false;
+	}
+
+	if (name.length() > 255)
+	{
+		return false;
+	}
+
+	for (char c : name)
+	{
+		unsigned char CC = static_cast<unsigned char>(c);
+
+		if (iscntrl(CC))
+		{
+			return false;
+		}
+		if (c == '/' || c == '\\')
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+string get_parent_Path(const string& path)
+{
+	string normalized = normalize_path(path);
+
+	if (normalized.empty())
+	{
+		return "";
+	}
+
+	size_t position = normalized.find_last_of('/');
+
+	if (position == string::npos)
+	{
+		return "";
+	}
+
+	return normalized.substr(0, position);
+}
 
 int main()
 {
@@ -73,7 +239,7 @@ int main()
 	auto& cors = app.get_middleware<crow::CORSHandler>();
 
 	cors.global()
-		.origin("*")
+		.origin("*")   
 		.headers("Content-Type")
 		.methods("GET"_method, "POST"_method, "OPTIONS"_method);
 
@@ -129,6 +295,16 @@ int main()
 					return res;
 				}
 
+				if (!body["profile"])
+				{
+					crow::json::wvalue error;
+					error["success"] = false;
+					error["error"] = "missing profile";
+
+					auto res = crow::response(400, error);
+					return res;
+				}
+				
 				if (!body["command"])
 				{
 					crow::json::wvalue error;
@@ -138,19 +314,48 @@ int main()
 					auto res = crow::response(400, error);
 					return res;
 				}
+				string profile = body["profile"].s();
+				string current_path = "";
 
+				if (body["path"])
+				{
+					current_path = body["path"].s();
+				}
+
+				if (!validprofile(profile))
+				{
+					crow::json::wvalue error;
+					error["success"] = false;
+					error["error"] = "invalid profile name";
+					auto res = crow::response(400, error);
+					return res;
+				}
+
+				if (!validrelativepath(current_path))
+				{
+					crow::json::wvalue error;
+					error["success"] = false;
+					error["error"] = "Invalid filesystem path";
+					auto res = crow::response(400, error);
+					return res;
+				}
 				std::string command = body["command"].s();
-				std::string result = processstrings(command);
+				std::string result = processstrings_profile(command,profile,current_path);
 				crow::json::wvalue response;
+
 				response["success"] = true;
 				response["output"] = "   " + result;
+				response["profile"] = profile;
+				response["path"] = normalize_path(current_path);
 
 				if(body["terminal"])
 				{
 					response["terminal"] = body["terminal"].i();
 				}
+
 				auto res = crow::response(response);
 				return res;
+
 			});
 	const char* port = std::getenv("PORT");
 	app.port(port ? std::stoi(port) : 8080).multithreaded().run();
@@ -158,21 +363,25 @@ int main()
 	//app.port(8080).multithreaded().run();
 
 }
-string processstrings(string order_commands)
+
+string processstrings_profile(string order_commands, const string& profile, string& current_path)
 {
 	size_t search_calculate = order_commands.find("calculate");
 	auto ichy_file_nameworks = order_commands;	
 	if (ichy_file_nameworks == "echo")
 	{
-		echo_mode = true;
+		lock_guard<mutex> lock(profile_state_mutex);
+		profile_echo_modes[profile] = true;
 		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'echo stop' to stop echoing.";
 	}
 
 	if (ichy_file_nameworks == "echo stop")
 	{
-		if (echo_mode)
+		lock_guard<mutex> lock(profile_state_mutex);
+
+		if (profile_echo_modes[profile])
 		{
-			echo_mode = false;
+			profile_echo_modes[profile] = false;
 			return "echo mode stopped";
 		}
 		else
@@ -180,14 +389,140 @@ string processstrings(string order_commands)
 			return "SORRY I THINK ECHO MODE IS OFF";
 		}
 	}
-	if (echo_mode)
+
 	{
-		return ichy_file_nameworks;
+		lock_guard<mutex> lock(profile_state_mutex);
+		if (profile_echo_modes[profile])
+		{
+			return ichy_file_nameworks;
+		}
 	}
+	
 	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
+
+	if (ichy_file_nameworks == "pwd")
+	{
+		string path = normalize_path(current_path);
+
+		replace(path.begin(), path.end(), '/', '\\');
+
+		if (path.empty())
+		{
+			return "desktop:\\" + profile;
+		}
+		return "desktop:\\" + profile + "\\" + path;
+	}
+
+	if (ichy_file_nameworks.rfind("mkdir : ", 0) == 0)
+	{
+		string folder_name;
+		folder_name = ichy_file_nameworks.substr(8);
+		if (!derectory_name_validity(folder_name))
+		{
+			return "Invalid folder name.";
+		}
+		string target_path = join_relative_path(current_path, folder_name);
+		return FOLDERRequest("mkdir", profile, target_path);
+	}
+
+	if (ichy_file_nameworks == "/cd")
+	{
+		if (normalize_path(current_path).empty())
+		{
+			return "already at directory... ";
+		}
+
+		current_path = get_parent_path(current_path);
+
+		return "Directory changed to: " + (normalize_path(current_path).empty() ? string("desktop:\\") + profile : string("desktop:\\") + profile + "\\" + string([](string p)
+			{
+				replace(p.begin(), p.end(), '/', '\\');
+				return p;
+			}(normalize_path(current_path))));
+	}
+
+	if (ichy_file_nameworks.rfind("cd : ", 0) == 0)
+	{
+		string folder_name = ichy_file_nameworks.substr(5);
+		if (!directory_name_validity(folder_name))
+		{
+			return "Invalid Directory Name.";
+		}
+
+		string target_path = join_relative_path(current_path, folder_name);
+		string result = FOLDERRequest("cd", profile, target_path);
+
+		if (result == "DIRECTORY_EXISTS")
+		{
+			current_path = target_path;
+			return "Directory changed to: " + (string("desktop:\\") + profile + "\\" + string([](string p)
+			{
+				replace(p.begin(), p.end(), '/', '\\');
+				return p;
+
+			}(normalize_path(current_path))));
+
+		}
+		return result;
+
+	}
+
+	if (ichy_file_nameworks.rfind("deldir : ", 0) == 0)
+	{
+		string folder_name = ichy_file_nameworks.substr(9);
+		if (!directory_name_validity(folder_name))
+		{
+			return " Invalid folder name...";
+		}
+
+		string target_path = join_relative_path(current_path, folder_name);
+
+		return FOLDERRequest("deldir", profile, target_path);
+	}
+
+	if (ichy_file_nameworks == "list")
+	{
+		return FOLDERRequest("list", profile, current_path);
+	}
+
+	if (ichy_file_nameworks == "super_list")
+	{
+		return FOLDERRequest("super_list", profile, "");
+	}
+
+	if (ichy_file_nameworks.rfind("dir/rename : ", 0) == 0)
+	{
+		string new_name = ichy_file_nameworks.substr(13);
+
+		if (!directory_name_validity(new_name))
+		{
+			return "INVALID FOLDERNAME";
+		}
+
+		string old_path = normalize_path(current_path);
+
+		if (old_path.empty())
+		{
+			return " the profile directory cant be renamed..";
+		}
+
+		string parent_path = get_parent_path(old_path);
+		string new_path = join_relative_path(parent_path, new_name);
+		string result = FOLDERRequest("rename", profile, old_path, new_path);
+
+		if (result == "RENAME_SUCCESS")
+		{
+			current_path = new_path;
+
+			return "directory renamed to : " + new_name;
+		}
+
+		return result;
+	}
+
 	if (order_commands == "whoami")
 	{
-		return "YOU ARE USER... BEEP BEEP ... I AM HAPPY TO WORK WITH YOU :D \n";
+		return "YOU ARE USER..." + profile + "." + " BEEP BEEP ... I AM HAPPY TO WORK WITH YOU :D \n";
 		return "I HOPE YOU WILL LIKE ME {^-^}";
 	}
 	if (order_commands == "help")
@@ -218,6 +553,17 @@ string processstrings(string order_commands)
 			"btw nice to meet YOU!.\n"
 			"What can I do for you now ? :D ";
 	}
+	if (order_commands == "pwd")
+	{
+		string path = normalize_path(current_path);
+		if (path.empty())
+		{
+			return "desktop:\\" + profile;
+		}
+		replace(path.begin(), path.end(), '/', '\\');
+
+		return "desktop:\\" + profile + "\\" + path;
+	}
 	if (search_calculate != std::string::npos)
 	{
 		std::string calc_command = order_commands.substr(9);
@@ -230,12 +576,13 @@ string processstrings(string order_commands)
 		if (ichyname.find(".txt") == string::npos)
 		{
 			ichyname += ".txt";
-
-			return BRIDGERequest("create", ichyname);
+			string target_path = join_relative_path(current_path, ichyname);
+			return BRIDGERequest("create", profile, target_path);
 		}
 		else if (ichyname.find(".txt") != string::npos)
 		{
-			return BRIDGERequest("create", ichyname);
+			string target_path = join_relative_path(current_path, ichyname);
+			return BRIDGERequest("create", profile, target_path);
 			
 		}
 		else
@@ -262,8 +609,8 @@ string processstrings(string order_commands)
 		{
 			NAME_OF_THE_FILES += ".txt";
 		}
-		return BRIDGERequest("write", NAME_OF_THE_FILES, CONTENT_OF_THE_FILE);
-		
+		string target_path = join_relative_path(current_path, NAME_OF_THE_FILES);
+		return BRIDGERequest("write", profile, target_path, CONTENT_OF_THE_FILE);
 	}
 	if (ichy_file_nameworks.rfind("rdfile : ", 0)==0)
 	{
@@ -273,7 +620,8 @@ string processstrings(string order_commands)
 		{
 			ichyname += ".txt";
 		}
-		std::string result_of_read = BRIDGERequest("read", ichyname);
+		string target_path = join_relative_path(current_path, ichyname);
+		std::string result_of_read = BRIDGERequest("read", profile, target_path);
 		size_t content_start = result_of_read.find("\"content\":\"");
 		if (content_start != string::npos)
 		{
@@ -295,12 +643,15 @@ string processstrings(string order_commands)
 		{
 			 ichyname += ".txt";
 		}
-		return BRIDGERequest("delete", ichyname);
+
+		string target_path = join_relative_path(current_path, ichyname);
+
+		return BRIDGERequest("delete", profile, target_path);
 		
 	}
 	if (ichy_file_nameworks.rfind("lsfile", 0) == 0)//LIST CODE
 	{
-		string result_of_list = BRIDGERequest("list", "");
+		string result_of_list = BRIDGERequest("list", profile, current_path);
 		size_t files_start = result_of_list.find("\"files\":[");
 		if (files_start == string::npos)
 		{
@@ -369,6 +720,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* user
 {
 	if (contents == nullptr || userp == nullptr)
 		return 0;
+
 	size_t total = size * nmeb;
 
 	std::string* response = static_cast<std::string*>(userp);
@@ -379,82 +731,132 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* user
 	);
 	return total;
 }
+string escape_json(const string& input)
+{
+	string output;
+
+	for (char c : input)
+	{
+		switch (c)
+		{
+		case '"':
+			output += "\\\"";
+			break;
+		case '\\':
+			output += "\\\\";
+			break;
+		case '\n':
+			output += "\\n";
+			break;
+		case '\r':
+			output += "\\r";
+			break;
+		case '\t':
+			output += "\\t";
+			break;
+		default:
+			output += c;
+			break;
+		}
+	}
+
+	return output;
+}
 string BRIDGERequest(
 	const string& method,
-	const string& filename,
-	const string& content)
+	const string& profile,
+	const string& path,
+	const string& content = "")
 {
+	if (!validprofile(profile))
+	{
+		return "Invalid profile";
+	}
+
+	if (!validrelativepath(path))
+	{
+		return "Invalid filesystem path.";
+	}
+
 	CURL* curl = curl_easy_init();
 
 	if (!curl)
 		return "CURL initialization failed";
 
 	string response;
+	string filename = DATABASE_ADRESS + profile + "/Desktop/" + profile;
+	if (!path.empty())
+	{
+		filename += "/" + path;
+	}
+	const string bridge_base_url = "https://valcon-1.onrender.com";
+	string normalized_path = normalize_path(path);
 
-	string url = "https://valcon-1.onrender.com/server_bridge/files/" + method;
-	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	string json = "{\"profile\":\"" + profile + "\",\"path\":\"" + normalized_path + "\"";
+	if (!content.empty())
+	{
+		json +=
+			",\"content\":\"" + escape_json(content) + "\"";
+	}
+	json += "}";
 
 	struct curl_slist* headers = nullptr;
+
 	headers = curl_slist_append(
 		headers,
 		"Content-Type: application/json"
 	);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	string json ="{\"filename\":\"" + filename + "\"";
-
-	if (!content.empty())
+		
+	if (method == "create")
 	{
-		json += ",\"content\":\"";
-		for (char c : content)
-		{
-			if (c == '"')
-			{
-				json += "\\\"";
-			}
-			else if (c == '\\')
-			{
-				json += "\\\\";
-			}
-			else if (c == '\n')
-			{
-				json += "\\n";
-			}
-			else
-			{
-				json += c;
-			}
-		}json += "\"";
-	}
-	json += "}";
+		string url = bridge_base_url + "/server_bridge/files/create" ;
 
-	if (method == "create" || method == "write")
-	{
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
 
 	}
+	else if (method == "write")
+	{
+		string url =
+			bridge_base_url + "/server_bridge/files/write";
+
+		curl_easy_setopt(curl,CURLOPT_URL,url.c_str());
+		curl_easy_setopt(curl,CURLOPT_POST,	1L);
+		curl_easy_setopt(curl,CURLOPT_POSTFIELDS,json.c_str());
+	}
 	else if (method == "read")
 	{
-		string readURL = "https://valcon-1.onrender.com/server_bridge/files/read/" + filename;
+		string readURL = bridge_base_url + "/server_bridge/files/read/" + normalized_path;
 
 		curl_easy_setopt(curl, CURLOPT_URL, readURL.c_str());
 		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
 
 	}
 	else if (method == "delete")
 	{
-		string deleteURL= "https://valcon-1.onrender.com/server_bridge/files/delete/" + filename;
+		string deleteURL= bridge_base_url + "/server_bridge/files/delete/" + normalized_path;
 
 		curl_easy_setopt(curl, CURLOPT_URL, deleteURL.c_str());
 		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+
 
 	}
 	else if (method == "list")
 	{
-		string listURL = "https://valcon-1.onrender.com/server_bridge/files/list";
+		string listURL = bridge_base_url + "/server_bridge/files/list";
 
 		curl_easy_setopt(curl, CURLOPT_URL, listURL.c_str());
 		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+	}
+	else
+	{
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
 	}
 
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -475,15 +877,15 @@ string BRIDGERequest(
 	curl_easy_cleanup(curl);
 	if (method == "write")
 	{
-		return "file: " + filename + " been updated...";
+		return "file: " + path + " been updated...";
 	}
 	if (method == "create")
 	{
-		return "file: " + filename + " has been created";
+		return "file: " + path + " has been created";
 	}
-	if (method == "deleted")
+	if (method == "delete")
 	{
-		return "file: " + filename + " is deleted ";
+		return "file: " + path + " is deleted ";
 	}
 	else {
 		return response;
@@ -491,6 +893,149 @@ string BRIDGERequest(
 	return "HTTP " + to_string(http_code) + "\n" + response;
 
 }// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
+
+string FOLDERRequest(const string& method, const string& profile, const string& path, const string& new_name)
+{
+	if (!validprofile(profile))
+	{
+		return "Invalid profile";
+	}
+
+	if (!validrelativepath(path))
+	{
+		return "Invalid filesystem path";
+	}
+
+	if (!new_name.empty() && !validrelativepath(new_name))
+	{
+		return "invalid target path.";
+	}
+
+	if (!curl)
+	{
+		return "initialization failed";
+	}
+
+	string response;
+
+	const string bridge_base_url = "https://valcon-1.onrender.com";
+
+	string normalized_path = normalize_path(path);
+	string json = "{\"profile\":\"" + escape_json(profile) + "\",\path\":\"" + escape_json(normalized_path) + "\"";
+
+	if (!new_name.empty())
+	{
+		json += ",\"new_path\":\"" + escape_json(normalize_path(new_name)) + "\"";
+	}
+
+	json += "}";
+	struct curl_slist* headers = nullptr;
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	string url;
+	if (method == "mkdir")
+	{
+		url = bridge_base_url + "/server_bridge/folders/mkdir";
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+	}
+	else if (method == "cd")
+	{
+		url = bridge_base_url + "/server_bridge/folders/check";
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELD, json.c_str());
+	}
+	else if (method == "deldir")
+	{
+		url = bridge_base_url + "/server_bridge/folders/delete";
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+	}
+	else if (method == "list")
+	{
+		url = bridge_base_url + "/server_bridge/folders/list";
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+	}
+	else if (method == "super_list")
+	{
+		url = bridge_base_url + "/server_bridge/folders/super-list";
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+	}
+	else if (method == "rename")
+	{
+		url = bridge_base_url + "/server_bridge/folders/rename";
+
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+	}
+	else
+	{
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+		return "Unknownn folder operation.";
+	}
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+
+	curl_slist result = curl_easy_perform(curl);
+	if (result != CURLE_OK)
+	{
+		response = "Bridge error: " + string(curl_easy_strerror(result));
+	}
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+
+	if (method == "cd")
+	{
+		if (response.find("\"exists\":true") != string::npos)
+		{
+			return "DIRECTORY_EXISTS";
+		}
+
+		return "directory doesnt exist";
+	}
+	if (method == "mkdir")
+	{
+		if (response.find("\"success\":true") != string::npos)
+		{
+			return "folder created: " + normalized_path;
+		}
+		return "Folder creation Failed";
+	}
+	if (method == "deldir")
+	{
+		if (response.find("\"success\":true") != string::npos)
+		{
+			return "Folder deleted with all its contents: " + normalized_path;
+		}
+
+		return "folder deletion failed";
+	}
+	if (method == "rename")
+	{
+		if (response.find("\"success\":true") != string::npos)
+		{
+			return "RENAME_SUCCESS";
+		}
+
+		return "Folder rename failed";
+	}
+
+	return response;
+}
 
 string CALCULATOR(string calc_command)
 {   //we need to implement calculate logics here to make sure the calculator works
