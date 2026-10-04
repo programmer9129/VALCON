@@ -472,6 +472,62 @@ app.post("/server_bridge/folders/mkdir", async (req, res) => {
    }
 });
 
+app.post("/server_bridge/folders/check", async(req, res) => {
+    try {
+        const { profile, path} = req.body;
+
+        if (!profile || !path){
+            return res.status(400).json({
+                success: false,
+                error: "please provide a profile and path"
+            });
+        }
+
+        const cleanProfile = String(profile).trim().replace(/^\/+|\/+$/g, "");
+        const cleanPath = String(path).trim().replace(/^\/+|\/+$/g, "");
+
+        if (
+            cleanProfile.includes("..") ||
+            cleanProfile.includes("\\") ||
+            cleanPath.includes("\\") ||
+            cleanPath.split("/").some(part => part === "..")
+        ){
+            return res.status(400).json({
+                success: false,
+                error: "invalid path"
+            });
+        }
+
+        const folderPath = `${cleanProfile}/Desktop/${cleanProfile}/${cleanPath}`;
+
+        const { data, error } = await supabase.storage.from(BUCKET_NAME).list(folderPath, {
+            limit: 1,
+            offset: 0
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        const exists = data && data.length > 0;
+
+        return res.json({
+            success: true,
+            operation: "check",
+            profile: cleanProfile,
+            path: cleanPath,
+        });
+    } catch (error){
+        console.error("FOLDER CHECK ERROR:", error);
+
+        return res.status(500).json({
+            success: false,
+            operation: "check",
+            error: error.message
+        });
+    }
+});
+
 app.get("/json", (req, res) => {
     res.json({
         success: true,
