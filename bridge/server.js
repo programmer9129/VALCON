@@ -1,11 +1,14 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors");
 const {createClient} = require("@supabase/supabase-js");
 const BUCKET_NAME = "valcon-files";
 
 const ID_BACKEND_ADRESS = "https://valcon-r5ti.onrender.com/server_bridge";
 const app = express();
+app.use(cors());
+app.use(express.json());
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY);
