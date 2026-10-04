@@ -27,15 +27,23 @@ let root = null;
 let listEl = null;
 let searchEl = null;
 let statusEl = null;
+
 let nowTitleEl = null;
 let nowArtistEl = null;
+
 let playButton = null;
 let shuffleButton = null;
 let repeatButton = null;
+
 let seekEl = null;
 let currentTimeEl = null;
 let durationEl = null;
 let volumeEl = null;
+
+let recordGif = null;
+let recordFreeze = null;
+let emptyVisual = null;
+let libraryCountEl = null;
 
 function loadPrefs() {
   try {
@@ -97,7 +105,6 @@ function saveLibrary() {
 
 function parseName(filename) {
   const withoutExtension = filename.replace(/\.[^/.]+$/, "");
-
   const parts = withoutExtension.split(" - ");
 
   if (parts.length >= 2) {
@@ -167,6 +174,63 @@ function setStatus(message) {
   }
 }
 
+function showPlayingVisual() {
+  if (!recordGif || !recordFreeze || !emptyVisual) {
+    return;
+  }
+
+  emptyVisual.style.display = "none";
+  recordFreeze.classList.remove("visible");
+  recordGif.classList.add("playing");
+}
+
+function freezePlayingVisual() {
+  if (!recordGif || !recordFreeze || !emptyVisual) {
+    return;
+  }
+
+  if (recordGif.complete && recordGif.naturalWidth > 0) {
+    try {
+      const canvas = document.createElement("canvas");
+
+      canvas.width = recordGif.naturalWidth;
+      canvas.height = recordGif.naturalHeight;
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error("Canvas context unavailable");
+      }
+
+      context.drawImage(recordGif, 0, 0, canvas.width, canvas.height);
+
+      recordFreeze.src = canvas.toDataURL("image/png");
+
+      recordGif.classList.remove("playing");
+      recordFreeze.classList.add("visible");
+      emptyVisual.style.display = "none";
+
+      return;
+    } catch (error) {
+      console.warn("Could not freeze record animation:", error);
+    }
+  }
+
+  recordGif.classList.remove("playing");
+  recordFreeze.classList.remove("visible");
+  emptyVisual.style.display = "flex";
+}
+
+function resetPlayingVisual() {
+  if (!recordGif || !recordFreeze || !emptyVisual) {
+    return;
+  }
+
+  recordGif.classList.remove("playing");
+  recordFreeze.classList.remove("visible");
+  emptyVisual.style.display = "flex";
+}
+
 function applyFilter() {
   const query = state.search.trim().toLowerCase();
 
@@ -178,9 +242,15 @@ function applyFilter() {
 
   state.filtered = state.tracks.filter((track) => {
     return (
-      track.title.toLowerCase().includes(query) ||
-      track.artist.toLowerCase().includes(query) ||
-      track.filename.toLowerCase().includes(query)
+      String(track.title || "")
+        .toLowerCase()
+        .includes(query) ||
+      String(track.artist || "")
+        .toLowerCase()
+        .includes(query) ||
+      String(track.filename || "")
+        .toLowerCase()
+        .includes(query)
     );
   });
 
@@ -194,16 +264,29 @@ function renderList() {
 
   listEl.innerHTML = "";
 
+  if (libraryCountEl) {
+    libraryCountEl.textContent = `${state.filtered.length} ${
+      state.filtered.length === 1 ? "track" : "tracks"
+    }`;
+  }
+
   if (state.filtered.length === 0) {
     const empty = document.createElement("li");
 
-    empty.textContent =
-      state.tracks.length === 0
-        ? "No music imported."
-        : "No tracks match your search.";
+    empty.className = "music-empty-library";
 
-    empty.style.opacity = "0.6";
-    empty.style.cursor = "default";
+    const icon = document.createElement("wa-icon");
+    icon.name = "music";
+
+    const text = document.createElement("span");
+
+    text.textContent =
+      state.tracks.length === 0
+        ? "Your library is empty"
+        : "No tracks match your search";
+
+    empty.appendChild(icon);
+    empty.appendChild(text);
 
     listEl.appendChild(empty);
 
@@ -217,19 +300,32 @@ function renderList() {
       li.classList.add("playing");
     }
 
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "music-track-icon";
+
+    const icon = document.createElement("wa-icon");
+
+    icon.name =
+      track.id === state.currentId && state.playing ? "volume-high" : "music";
+
+    iconWrap.appendChild(icon);
+
     const main = document.createElement("div");
+    main.className = "music-track-main";
 
     const title = document.createElement("div");
+    title.className = "music-track-title";
     title.textContent = track.title;
 
     const artist = document.createElement("div");
-    artist.className = "meta";
+    artist.className = "music-track-artist";
     artist.textContent = track.artist;
 
     main.appendChild(title);
     main.appendChild(artist);
 
     const right = document.createElement("div");
+    right.className = "music-track-right";
 
     const duration = document.createElement("div");
     duration.className = "meta";
@@ -244,16 +340,28 @@ function renderList() {
 
     if (track.remoteUrl) {
       const cloud = document.createElement("div");
-      cloud.className = "local";
+
+      cloud.className = "local cloud";
       cloud.textContent = "cloud";
+
       right.appendChild(cloud);
+    } else if (track.uploading) {
+      const uploading = document.createElement("div");
+
+      uploading.className = "local uploading";
+      uploading.textContent = "uploading";
+
+      right.appendChild(uploading);
     } else if (blobs.has(track.id)) {
       const local = document.createElement("div");
+
       local.className = "local";
       local.textContent = "local";
+
       right.appendChild(local);
     }
 
+    li.appendChild(iconWrap);
     li.appendChild(main);
     li.appendChild(right);
 
@@ -268,23 +376,34 @@ function renderList() {
 function renderPlayer() {
   const track = getTrack(state.currentId);
 
+  updateModeButtons();
+
   if (!track) {
     nowTitleEl.textContent = "Nothing playing";
-    nowArtistEl.textContent = "";
-    playButton.textContent = "Play";
+    nowArtistEl.textContent = "Choose a track from your library";
+    playButton.title = "Play selected track";
+    playButton.innerHTML = `<wa-icon name="play"></wa-icon>`;
+
+    resetPlayingVisual();
+    renderList();
+
     return;
   }
 
   nowTitleEl.textContent = track.title;
   nowArtistEl.textContent = track.artist;
 
-  playButton.textContent = state.playing ? "Pause" : "Play";
+  playButton.title = state.playing ? "Pause" : "Play";
 
-  shuffleButton.textContent = state.shuffle ? "Shuffle: On" : "Shuffle: Off";
+  playButton.innerHTML = state.playing
+    ? `<wa-icon name="pause"></wa-icon>`
+    : `<wa-icon name="play"></wa-icon>`;
 
-  repeatButton.textContent = `Repeat: ${
-    state.repeat === "off" ? "Off" : state.repeat === "one" ? "One" : "All"
-  }`;
+  if (state.playing) {
+    showPlayingVisual();
+  } else {
+    freezePlayingVisual();
+  }
 
   renderList();
 }
@@ -299,10 +418,7 @@ async function play(id) {
   const source = srcFor(track);
 
   if (!source) {
-    setStatus(
-      "This track is unavailable locally and has no usable server URL.",
-    );
-
+    setStatus("This track is unavailable.");
     return;
   }
 
@@ -319,16 +435,15 @@ async function play(id) {
 
     state.playing = true;
 
-    setStatus(track.remoteUrl ? "Playing from server." : "Playing local copy.");
+    setStatus(track.remoteUrl ? "Playing from cloud." : "Playing local copy.");
 
+    showPlayingVisual();
     renderPlayer();
   } catch (error) {
     console.error("Music playback failed:", error);
 
-    setStatus("Playback failed.");
-
     state.playing = false;
-
+    setStatus("Playback failed.");
     renderPlayer();
   }
 }
@@ -363,17 +478,23 @@ function pickNext() {
       (track) => track.id !== state.currentId,
     );
 
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    if (candidates.length > 0) {
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
   }
 
   const index = currentIndex();
 
-  if (index < 0) {
+  if (index === -1) {
     return state.tracks[0];
   }
 
   if (index >= state.tracks.length - 1) {
-    return state.repeat === "all" ? state.tracks[0] : null;
+    if (state.repeat === "all") {
+      return state.tracks[0];
+    }
+
+    return null;
   }
 
   return state.tracks[index + 1];
@@ -381,15 +502,16 @@ function pickNext() {
 
 function next() {
   if (state.tracks.length === 0) {
+    setStatus("Your library is empty.");
     return;
   }
 
-  if (state.repeat === "one") {
+  if (state.repeat === "one" && state.currentId) {
     audio.currentTime = 0;
 
-    if (state.currentId) {
+    audio.play().catch(() => {
       play(state.currentId);
-    }
+    });
 
     return;
   }
@@ -398,6 +520,7 @@ function next() {
 
   if (!nextTrack) {
     state.playing = false;
+    setStatus("End of library.");
     renderPlayer();
     return;
   }
@@ -407,34 +530,44 @@ function next() {
 
 function prev() {
   if (state.tracks.length === 0) {
+    setStatus("Your library is empty.");
     return;
   }
 
   if (audio.currentTime > 3) {
     audio.currentTime = 0;
+    setStatus("Restarted current track.");
     return;
   }
 
   const index = currentIndex();
 
-  if (index <= 0) {
-    const last =
-      state.repeat === "all"
-        ? state.tracks[state.tracks.length - 1]
-        : state.tracks[0];
-
-    play(last.id);
+  if (index > 0) {
+    play(state.tracks[index - 1].id);
     return;
   }
 
-  play(state.tracks[index - 1].id);
+  if (state.repeat === "all") {
+    play(state.tracks[state.tracks.length - 1].id);
+    return;
+  }
+
+  audio.currentTime = 0;
+
+  audio.play().catch(() => {
+    play(state.tracks[0].id);
+  });
 }
 
 function toggleShuffle() {
   state.shuffle = !state.shuffle;
 
   savePrefs();
-  renderPlayer();
+  updateModeButtons();
+
+  setStatus(state.shuffle ? "Shuffle enabled." : "Shuffle disabled.");
+
+  renderList();
 }
 
 function cycleRepeat() {
@@ -447,7 +580,43 @@ function cycleRepeat() {
   }
 
   savePrefs();
-  renderPlayer();
+  updateModeButtons();
+
+  if (state.repeat === "off") {
+    setStatus("Repeat disabled.");
+  } else if (state.repeat === "all") {
+    setStatus("Repeating all tracks.");
+  } else {
+    setStatus("Repeating current track.");
+  }
+}
+
+function updateModeButtons() {
+  if (!shuffleButton || !repeatButton) {
+    return;
+  }
+
+  shuffleButton.classList.toggle("music-mode-active", state.shuffle);
+
+  shuffleButton.title = state.shuffle ? "Shuffle on" : "Shuffle off";
+
+  repeatButton.classList.remove("music-mode-active", "music-mode-one");
+
+  if (state.repeat === "off") {
+    repeatButton.innerHTML = `<wa-icon name="repeat"></wa-icon>`;
+
+    repeatButton.title = "Repeat off";
+  } else if (state.repeat === "all") {
+    repeatButton.innerHTML = `<wa-icon name="repeat"></wa-icon>`;
+
+    repeatButton.classList.add("music-mode-active");
+    repeatButton.title = "Repeat all tracks";
+  } else {
+    repeatButton.innerHTML = `<span class="repeat-one-icon">1</span>`;
+
+    repeatButton.classList.add("music-mode-one");
+    repeatButton.title = "Repeat current track";
+  }
 }
 
 async function importFiles(fileList) {
@@ -469,32 +638,58 @@ async function importFiles(fileList) {
     return;
   }
 
-  const newTracks = audioFiles.map((file) => {
+  const existingNames = new Set(
+    state.tracks.map((track) =>
+      String(track.filename || "")
+        .trim()
+        .toLowerCase(),
+    ),
+  );
+
+  const newFiles = [];
+
+  for (const file of audioFiles) {
+    const filename = safeName(file.name);
+    const key = filename.toLowerCase();
+
+    if (existingNames.has(key)) {
+      continue;
+    }
+
+    existingNames.add(key);
+    newFiles.push(file);
+  }
+
+  if (newFiles.length === 0) {
+    setStatus(
+      audioFiles.length === 1
+        ? "This track is already in your library."
+        : "All selected tracks are already in your library.",
+    );
+
+    return;
+  }
+
+  const skippedCount = audioFiles.length - newFiles.length;
+
+  const newTracks = newFiles.map((file) => {
     const parsed = parseName(file.name);
 
     return {
       id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-
       filename: safeName(file.name),
-
       title: parsed.title,
-
       artist: parsed.artist,
-
       duration: 0,
-
       remoteUrl: null,
-
       uploading: true,
-
       progress: 0,
-
       addedAt: Date.now(),
     };
   });
 
   newTracks.forEach((track, index) => {
-    blobs.set(track.id, audioFiles[index]);
+    blobs.set(track.id, newFiles[index]);
     state.tracks.push(track);
   });
 
@@ -502,15 +697,23 @@ async function importFiles(fileList) {
   applyFilter();
   renderPlayer();
 
-  setStatus(
-    `${newTracks.length} track${
-      newTracks.length === 1 ? "" : "s"
-    } added locally.`,
-  );
+  if (skippedCount > 0) {
+    setStatus(
+      `${newTracks.length} new ${
+        newTracks.length === 1 ? "track" : "tracks"
+      } added. ${skippedCount} already in your library.`,
+    );
+  } else {
+    setStatus(
+      `${newTracks.length} ${
+        newTracks.length === 1 ? "track" : "tracks"
+      } added.`,
+    );
+  }
 
   for (let i = 0; i < newTracks.length; i++) {
     const track = newTracks[i];
-    const file = audioFiles[i];
+    const file = newFiles[i];
 
     state.uploading = true;
 
@@ -527,17 +730,13 @@ async function importFiles(fileList) {
     if (result.ok) {
       track.remoteUrl = result.url || remoteUrlFor(track.filename);
 
-      if (track.remoteUrl) {
-        setStatus(`${track.filename} uploaded successfully.`);
-      } else {
-        setStatus(
-          `${track.filename} uploaded, but no playback URL was returned. Local copy kept.`,
-        );
-      }
-    } else {
       setStatus(
-        `${track.filename} kept locally. Upload failed: ${result.reason}`,
+        track.remoteUrl
+          ? `${track.filename} uploaded.`
+          : `${track.filename} uploaded. Local copy kept.`,
       );
+    } else {
+      setStatus(`${track.filename} kept local. Upload failed.`);
     }
 
     saveLibrary();
@@ -545,47 +744,16 @@ async function importFiles(fileList) {
   }
 
   state.uploading = false;
-}
 
-async function retryUpload(track) {
-  if (!track) {
-    return;
-  }
-
-  const file = blobs.get(track.id);
-
-  if (!file) {
-    setStatus("The original local file is no longer available.");
-
-    return;
-  }
-
-  track.uploading = true;
-  track.progress = 0;
-
-  renderList();
-
-  const result = await upload(file, track.filename, (progress) => {
-    track.progress = progress;
-    renderList();
-  });
-
-  track.uploading = false;
-
-  if (result.ok) {
-    track.remoteUrl = result.url || remoteUrlFor(track.filename);
-
+  if (skippedCount > 0 && newTracks.length > 0) {
     setStatus(
-      track.remoteUrl
-        ? `${track.filename} uploaded successfully.`
-        : "Upload succeeded, but no remote URL was returned.",
+      `${newTracks.length} new ${
+        newTracks.length === 1 ? "track" : "tracks"
+      } added. ${skippedCount} duplicate${
+        skippedCount === 1 ? "" : "s"
+      } skipped.`,
     );
-  } else {
-    setStatus(`Retry failed: ${result.reason}`);
   }
-
-  saveLibrary();
-  renderList();
 }
 
 function removeTrack(id) {
@@ -602,6 +770,8 @@ function removeTrack(id) {
 
     state.currentId = null;
     state.playing = false;
+
+    resetPlayingVisual();
   }
 
   blobs.delete(id);
@@ -651,11 +821,7 @@ function handleAudioError() {
     });
 
     if (localSource) {
-      setStatus("Server playback failed. Falling back to local copy.");
-
-      track.remoteUrl = null;
-
-      saveLibrary();
+      setStatus("Cloud playback failed. Using local copy.");
 
       audio.src = localSource;
 
@@ -670,19 +836,22 @@ function handleAudioError() {
 
   state.playing = false;
 
-  setStatus("Playback failed and no local fallback is available.");
-
+  setStatus("Playback failed.");
   renderPlayer();
 }
 
 function setupAudioEvents() {
   audio.addEventListener("play", () => {
     state.playing = true;
+
+    showPlayingVisual();
     renderPlayer();
   });
 
   audio.addEventListener("pause", () => {
     state.playing = false;
+
+    freezePlayingVisual();
     renderPlayer();
   });
 
@@ -691,6 +860,7 @@ function setupAudioEvents() {
 
     if (track) {
       track.duration = audio.duration || 0;
+
       saveLibrary();
       renderList();
     }
@@ -730,81 +900,195 @@ export function startMusic(win) {
   root.innerHTML = `
     <div class="music">
       <div class="music-toolbar">
-        <input
-          id="musicSearch"
-          type="text"
-          placeholder="Search music..."
-        />
+        <div class="music-search-wrap">
+          <wa-icon name="search"></wa-icon>
+
+          <input
+            id="musicSearch"
+            type="text"
+            placeholder="Search library..."
+            aria-label="Search music"
+          />
+        </div>
 
         <input
           id="musicFiles"
+          class="music-file-input"
           type="file"
           accept="audio/*"
           multiple
-          hidden
         />
 
-        <wa-button id="musicImport">
-          Import
+        <wa-button
+          id="musicImport"
+          class="music-import"
+          title="Import music"
+        >
+          <wa-icon name="upload"></wa-icon>
+          <span>Import</span>
+        </wa-button>
+
+        <button
+          id="musicMenuButton"
+          class="music-menu-button"
+          type="button"
+          aria-label="Music options"
+          title="More options"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <div
+          id="musicMenu"
+          class="music-menu"
+          hidden
+        >
+          <button
+            id="musicMenuImport"
+            type="button"
+          >
+            <wa-icon name="upload"></wa-icon>
+            <span>Import music</span>
+          </button>
+
+          <button
+            id="musicMenuClearSearch"
+            type="button"
+          >
+            <wa-icon name="xmark"></wa-icon>
+            <span>Clear search</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="music-visual">
+        <div
+          id="musicEmptyVisual"
+          class="music-empty-visual"
+        >
+          <wa-icon name="compact-disc"></wa-icon>
+          <span>Nothing playing</span>
+        </div>
+
+        <img
+          id="musicRecord"
+          class="music-record"
+          src="./apps/music/background.gif"
+          alt=""
+          draggable="false"
+        />
+
+        <img
+          id="musicRecordFreeze"
+          class="music-record-freeze"
+          alt=""
+          draggable="false"
+        />
+      </div>
+
+      <div class="music-now">
+        <div class="music-now-main">
+          <div
+            id="musicNowTitle"
+            class="music-now-title"
+          >
+            Nothing playing
+          </div>
+
+          <div
+            id="musicNowArtist"
+            class="music-now-artist"
+          >
+            Choose a track from your library
+          </div>
+        </div>
+
+        <wa-icon
+          class="music-now-icon"
+          name="music"
+        ></wa-icon>
+      </div>
+
+      <div class="music-seek">
+        <span
+          id="musicCurrent"
+          class="music-time"
+        >
+          0:00
+        </span>
+
+        <input
+          id="musicSeek"
+          type="range"
+          min="0"
+          max="0"
+          step="0.1"
+          value="0"
+          aria-label="Seek"
+        />
+
+        <span
+          id="musicDuration"
+          class="music-time"
+        >
+          0:00
+        </span>
+      </div>
+
+      <div class="music-controls">
+        <wa-button
+          id="musicPrev"
+          title="Previous track"
+          appearance="plain"
+          size="small"
+        >
+          <wa-icon name="backward-step"></wa-icon>
+        </wa-button>
+
+        <wa-button
+          id="musicPlay"
+          class="music-control-main"
+          title="Play"
+          size="medium"
+        >
+          <wa-icon name="play"></wa-icon>
+        </wa-button>
+
+        <wa-button
+          id="musicNext"
+          title="Next track"
+          appearance="plain"
+          size="small"
+        >
+          <wa-icon name="forward-step"></wa-icon>
         </wa-button>
       </div>
 
-      <ul
-        id="musicList"
-        class="music-list"
-      ></ul>
+      <div class="music-secondary">
+        <div class="music-secondary-left">
+          <wa-button
+            id="musicShuffle"
+            title="Shuffle off"
+            appearance="plain"
+          >
+            <wa-icon name="shuffle"></wa-icon>
+          </wa-button>
 
-      <div class="music-player">
-        <div class="music-now">
-          <span id="musicNowTitle">
-            Nothing playing
-          </span>
-
-          <span id="musicNowArtist"></span>
+          <wa-button
+            id="musicRepeat"
+            title="Repeat off"
+            appearance="plain"
+          >
+            <wa-icon name="repeat"></wa-icon>
+          </wa-button>
         </div>
 
-        <div class="music-seek">
-          <span id="musicCurrent">
-            0:00
-          </span>
+        <div class="music-secondary-right">
+          <div class="music-volume">
+            <wa-icon name="volume-low"></wa-icon>
 
-          <input
-            id="musicSeek"
-            type="range"
-            min="0"
-            max="0"
-            step="0.1"
-            value="0"
-          />
-
-          <span id="musicDuration">
-            0:00
-          </span>
-        </div>
-
-        <div class="music-controls">
-          <wa-button id="musicPrev">
-            Prev
-          </wa-button>
-
-          <wa-button id="musicPlay">
-            Play
-          </wa-button>
-
-          <wa-button id="musicNext">
-            Next
-          </wa-button>
-
-          <wa-button id="musicShuffle">
-            Shuffle: Off
-          </wa-button>
-
-          <wa-button id="musicRepeat">
-            Repeat: Off
-          </wa-button>
-
-          <label>
-            Volume
             <input
               id="musicVolume"
               type="range"
@@ -812,11 +1096,29 @@ export function startMusic(win) {
               max="1"
               step="0.01"
               value="1"
+              aria-label="Volume"
             />
-          </label>
-        </div>
 
-        <div id="musicStatus"></div>
+            <wa-icon name="volume-high"></wa-icon>
+          </div>
+        </div>
+      </div>
+
+      <div class="music-library-header">
+        <span>Library</span>
+
+        <span id="musicLibraryCount">
+          0 tracks
+        </span>
+      </div>
+
+      <ul
+        id="musicList"
+        class="music-list"
+      ></ul>
+
+      <div id="musicStatus">
+        Import music to begin.
       </div>
     </div>
   `;
@@ -826,22 +1128,22 @@ export function startMusic(win) {
   statusEl = root.querySelector("#musicStatus");
 
   nowTitleEl = root.querySelector("#musicNowTitle");
-
   nowArtistEl = root.querySelector("#musicNowArtist");
 
   playButton = root.querySelector("#musicPlay");
-
   shuffleButton = root.querySelector("#musicShuffle");
-
   repeatButton = root.querySelector("#musicRepeat");
 
   seekEl = root.querySelector("#musicSeek");
-
   currentTimeEl = root.querySelector("#musicCurrent");
-
   durationEl = root.querySelector("#musicDuration");
-
   volumeEl = root.querySelector("#musicVolume");
+
+  recordGif = root.querySelector("#musicRecord");
+  recordFreeze = root.querySelector("#musicRecordFreeze");
+  emptyVisual = root.querySelector("#musicEmptyVisual");
+
+  libraryCountEl = root.querySelector("#musicLibraryCount");
 
   const importButton = root.querySelector("#musicImport");
 
@@ -851,11 +1153,18 @@ export function startMusic(win) {
 
   const nextButton = root.querySelector("#musicNext");
 
+  const menuButton = root.querySelector("#musicMenuButton");
+
+  const menu = root.querySelector("#musicMenu");
+
+  const menuImport = root.querySelector("#musicMenuImport");
+
+  const menuClearSearch = root.querySelector("#musicMenuClearSearch");
+
   loadPrefs();
   loadLibrary();
 
   audio.volume = state.volume;
-
   volumeEl.value = state.volume;
 
   applyFilter();
@@ -865,9 +1174,25 @@ export function startMusic(win) {
     fileInput.click();
   });
 
-  fileInput.addEventListener("change", () => {
-    importFiles(fileInput.files);
+  menuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
 
+  menuImport.addEventListener("click", () => {
+    menu.hidden = true;
+    fileInput.click();
+  });
+
+  menuClearSearch.addEventListener("click", () => {
+    searchEl.value = "";
+    state.search = "";
+    menu.hidden = true;
+    applyFilter();
+  });
+
+  fileInput.addEventListener("change", () => {
+    void importFiles(fileInput.files);
     fileInput.value = "";
   });
 
@@ -898,21 +1223,29 @@ export function startMusic(win) {
 
   volumeEl.addEventListener("input", () => {
     state.volume = Number(volumeEl.value);
-
     audio.volume = state.volume;
-
     savePrefs();
   });
 
   seekEl.addEventListener("input", () => {
     state.seeking = true;
-
     currentTimeEl.textContent = formatTime(Number(seekEl.value));
   });
 
   seekEl.addEventListener("change", () => {
     audio.currentTime = Number(seekEl.value);
     state.seeking = false;
+  });
+
+  root.addEventListener("click", (event) => {
+    if (
+      !menu.hidden &&
+      !menu.contains(event.target) &&
+      event.target !== menuButton &&
+      !menuButton.contains(event.target)
+    ) {
+      menu.hidden = true;
+    }
   });
 
   root.addEventListener("keydown", (event) => {
@@ -945,9 +1278,7 @@ export function startMusic(win) {
 
   if (localCount > 0) {
     setStatus(
-      `${localCount} local track${localCount === 1 ? "" : "s"} available.`,
+      `${localCount} local ${localCount === 1 ? "track" : "tracks"} available.`,
     );
-  } else {
-    setStatus("Import an audio file to begin.");
   }
 }

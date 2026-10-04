@@ -177,7 +177,6 @@ body {
 }
 
 .winbox .wb-body {
-  contain: clip;
   background: transparent;
   overflow: clip;
 }
