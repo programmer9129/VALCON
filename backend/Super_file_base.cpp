@@ -412,7 +412,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 	{
 		string folder_name;
 		folder_name = ichy_file_nameworks.substr(8);
-		if (!derectory_name_validity(folder_name))
+		if (!directory_name_validity(folder_name))
 		{
 			return "Invalid folder name.";
 		}
@@ -427,7 +427,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 			return "already at directory... ";
 		}
 
-		current_path = get_parent_path(current_path);
+		current_path = get_parent_Path(current_path);
 
 		return "Directory changed to: " + (normalize_path(current_path).empty() ? string("desktop:\\") + profile : string("desktop:\\") + profile + "\\" + string([](string p)
 			{
@@ -761,7 +761,7 @@ string BRIDGERequest(
 	const string& method,
 	const string& profile,
 	const string& path,
-	const string& content = "")
+	const string& content)
 {
 	if (!validprofile(profile))
 	{
@@ -1111,7 +1111,7 @@ string FOLDERRequest(const string& method, const string& profile, const string& 
 		}
 		else
 		{
-			title + "/" + profile + "/" + display_path;
+			title = profile + "/" + display_path;
 		}
 
 		string furnished_list =
