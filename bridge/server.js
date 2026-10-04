@@ -427,13 +427,13 @@ app.post("/server_bridge/folders/mkdir", async (req, res) => {
                error: "invalid path"
            });
        }
-       const folderpath = `${cleanProfile}/Desktop/${cleanProfile}/${cleanPath}`;
+       const folderPath = `${cleanProfile}/Desktop/${cleanProfile}/${cleanPath}`;
 
        const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(`${folderPath}/.folder`,
-           Buffer.form(""),
+           Buffer.from(""),
            {
                contentType: "application/octet-stream",
-               upsert: true
+               upsert: false
            }
        );
 
@@ -470,49 +470,7 @@ app.post("/server_bridge/folders/mkdir", async (req, res) => {
        });
    }
 });
-app.post("/json", async (req, res) => {
-   try {
-       const {profile, path, command, terminal} = req.body;
 
-       if(!profile){
-           return res.status(400).json({
-               success: false,
-               error: "profile is required"
-           });
-       }
-       if (!command) {
-           return res.status(400).json({
-               success: false,
-               error: "command is required"
-           });
-       }
-
-       const response = await fetch("https://valcon-r5ti.onrender.com/json",
-       {
-           method: "POST",
-           headers: {
-               "Content-Type":"application/json"
-           },
-           body: JSON.stringify({
-               profile,
-               path: path || "",
-               command,
-               terminal: terminal || 0
-           })
-       });
-
-       const data = await response.json();
-       return res.status(response.status).json(data);
-   }catch (error) {
-       console.error("json bridge error", error);
-
-       return res.status(502).json({
-           success: false,
-           error: "C++ backend unavailable",
-           details: error.messages
-       });
-   }
-});
 app.get("/json", (req, res) => {
     res.json({
         success: true,
@@ -522,28 +480,62 @@ app.get("/json", (req, res) => {
 });
 
 app.post("/json", async (req, res) => {
-   try{
+   try {
+       const { profile, path, command, terminal } = req.body;
+
+       if (!profile){
+           return res.status(400).json({
+              success: false,
+              error: "profile is required"
+           });
+       }
+
+       if (!command){
+           return res.status(400).json({
+               success: false,
+               error: "command is required"
+           });
+       }
+
        const response = await fetch("https://valcon-r5ti.onrender.com/json",
            {
                method: "POST",
                headers: {
-                   "Content-Type": "application/json"
+                   "content-Type": "application/json"
                },
-               body: JSON.stringify(req.body)
-           }
-       );
-       const data = await response.json();
+               body: JSON.stringify({
+                   profile,
+                   path: path || "",
+                   command,
+                   terminal: terminal || 0
+               })
+           });
+       const text = await response.text();
+       let data;
+       try {
+           data = JSON.parse(text);
+       } catch
+       {
+           data = {
+               success: false,
+               error: text
+           };
+       }
+
        return res.status(response.status).json(data);
-   } catch (error){
+   } catch(error) {
        console.error("json bridge error:", error);
 
        return res.status(502).json({
            success: false,
            error: "C++ backend unavailable",
            details: error.message
+
        });
    }
+
 });
+
 app.listen(PORT, () =>{
    console.log('bridge is running on port' + PORT);
 });
