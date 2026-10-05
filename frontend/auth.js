@@ -323,13 +323,10 @@ export async function resizeAvatar(file) {
 }
 
 export function bootAuth() {
-
   restoreSession();
 
   return new Promise((resolve) => {
     const existing = getAuth();
-      existing ? { username: existing.username } : null,
-    );
 
     if (existing) {
       document.getElementById("authGate")?.remove();
@@ -356,16 +353,6 @@ export function bootAuth() {
     const msg = document.getElementById("authMsg");
 
     let mode = hasAnyUser() ? "login" : "register";
-      mode,
-      usersRaw: localStorage.getItem(USERS_KEY),
-      hasAnyUser: hasAnyUser(),
-      submitTag: submit?.tagName,
-      submitLabelProp: submit?.label,
-      submitText: submit?.textContent?.trim(),
-      switchText: switchBtn?.textContent?.trim(),
-      uiScale: getComputedStyle(document.documentElement).fontSize,
-      accentVar: getComputedStyle(document.documentElement).getPropertyValue("--accent"),
-    });
 
     function render() {
       const registering = mode === "register";
@@ -425,8 +412,5 @@ export function bootAuth() {
     });
 
     render();
-      label: submit.textContent.trim(),
-      switchText: switchBtn.textContent.trim(),
-    });
   });
 }

@@ -27,16 +27,6 @@ function applyTheme() {
 
   const html = document.documentElement;
   const resolved = getResolvedTheme();
-    theme: get("appearance.theme"),
-    accent: get("appearance.accent"),
-    fontScale: get("appearance.fontScale"),
-    opacity: get("appearance.windowOpacity"),
-    radius: get("appearance.windowRadius"),
-    highContrast: get("appearance.highContrast"),
-    monospace: get("appearance.monospace"),
-    reduceMotion: get("appearance.reduceMotion"),
-    reduceTransparency: get("appearance.reduceTransparency"),
-  });
 
   html.dataset.theme = resolved;
 
@@ -70,17 +60,7 @@ function applyTheme() {
 
   html.classList.toggle("monospace-ui", get("appearance.monospace"));
 
-  try {
-    applyWallpaper();
-  } catch (error) {
-    throw error;
-  }
-    htmlTheme: html.dataset.theme,
-    accentVar: html.style.getPropertyValue("--accent"),
-    scaleVar: html.style.getPropertyValue("--ui-scale"),
-    htmlClasses: html.className,
-    fontSizePx: getComputedStyle(html).fontSize,
-  });
+  applyWallpaper();
 }
 
 function applyWallpaper() {
@@ -131,18 +111,12 @@ export function initTheme() {
   mediaQuery.addEventListener?.("change", mediaListener);
 
   onAny((detail) => {
-
     if (detail.key.startsWith("appearance.")) {
       applyTheme();
     }
   });
 
-  try {
-    applyTheme();
-  } catch (error) {
-
-    throw error;
-  }
+  applyTheme();
 }
 
 export function setTheme(theme) {
