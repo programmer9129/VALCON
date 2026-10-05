@@ -528,6 +528,109 @@ app.post("/server_bridge/folders/check", async(req, res) => {
     }
 });
 
+app.delete("/server_bridge/folders/delete", async (req, res) => {
+   try {
+       const { profile, path } = req.body;
+
+       if (!profile || !path)
+       {
+           return res.status(400).json({
+               success: false,
+               error: "profile and path are required"
+           });
+       }
+
+       const cleanProfile = String(profile).trim().replace(/^\/+|\/+$/g, "");
+       const cleanPath = String(path).trim().replace(/^\/+|\/+$/g, "");
+
+       if (
+           cleanProfile.includes("..") ||
+           cleanProfile.includes("\\") ||
+           cleanPath.includes("\\") ||
+           cleanPath.split("/").some(part => part ==="..")
+       ){
+           return res.status(400).json({
+               success: false,
+               error: "invalid path"
+           });
+       }
+
+       const folderPath = `${cleanProfile}/Desktop/${cleanProfile}/${cleanPath}`;
+
+       async function collectFiles(storagePath){
+           const files = [];
+           const { data, error } = await supabase.storage.from(BUCKET_NAME).list(storagePath, {
+               limit: 1000,
+               offset: 0
+           });
+
+           if (error){
+               throw error;
+           }
+
+           if (!data || data.length === 0){
+               return files;
+           }
+
+           for (const entry of data){
+
+               const entryPath = `${storagePath}/${entry.name}`;
+
+               if (entry.id === null){
+                   const nestedFiles = await collectFiles(entryPath);
+                   files.push(...nestedFiles);
+               }
+               else
+               {
+                   files.push(entryPath);
+               }
+           }
+
+           return files;
+
+       }
+
+       const filesToDelete = await collectFiles(folderPath);
+
+       if (filesToDelete.length === 0) {
+           return res.json({
+               success: true,
+               operation: "delete",
+               profile: cleanProfile,
+               path: cleanPath,
+               message: "folder was empty or did not exist"
+           });
+       }
+
+       // Supabase allows removing multiple files at once.
+       const { data, error } = await supabase
+           .storage
+           .from(BUCKET_NAME)
+           .remove(filesToDelete);
+
+       if (error) {
+           throw error;
+       }
+
+       return res.json({
+           success: true,
+           operation: "delete",
+           profile: cleanProfile,
+           path: cleanPath,
+           data: data
+       });
+
+   } catch (error) {
+       console.error("FOLDER DELETE ERROR:", error);
+
+       return res.status(500).json({
+           success: false,
+           operation: "delete",
+           error: error.message
+       });
+   }
+});
+
 app.get("/json", (req, res) => {
     res.json({
         success: true,
@@ -593,6 +696,6 @@ app.post("/json", async (req, res) => {
 
 });
 
-app.listen(PORT, () =>{
+app.listen(PORT, () => {
    console.log('bridge is running on port' + PORT);
 });
