@@ -844,7 +844,7 @@ string BRIDGERequest(
 	bool confirm
 )
 {
-	string bidge_url = get_env_required("");
+	string bridge_url = get_env_required("");
 	string bridge_key = get_env_required("");
 
 	if (bridge_url.empty())
@@ -908,259 +908,113 @@ string BRIDGERequest(
 	string body = request_body.dump();
 	struct curl_slist* headers = nullptr;
 
-}
+	headers = curl_slist_append(
+		headers,
+		"Content-Type: application/json"
+	);
 
+	string auth_header = "X-VALCON-BRIDGE-KEY: " + bridge_key;
 
-string FOLDERRequest(const string& method, const string& profile, const string& path, const string& new_name)
-{
-	if (!validprofile(profile))
-	{
-		return "Invalid profile";
-	}
+	headers = curl_slist_append(
+		headers,
+		auth_header.c_str()
+	);
 
-	if (!validrelativepath(path))
-	{
-		return "Invalid filesystem path";
-	}
+	curl_easy_setopt(
+		curl,
+		CURLOPT_HTTPHEADER,
+		headers
+	);
 
-	if (!new_name.empty() && !validrelativepath(new_name))
-	{
-		return "invalid target path.";
-	}
+	string url = bridge_url + "/server_bridge/fs";
 
-	CURL* curl = curl_easy_init();
+	curl_easy_setopt(
+		curl,
+		CURLOPT_URL,
+		url.c_str()
+	);
 
-	if (!curl)
-	{
-		return "initialization failed";
-	}
+	curl_easy_setopt(curl, CURLOPT_POST, 1L);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
 
-	string response;
+	curl_easy_setopt(
+		curl,
+		CURLOPT_WRITEFUNCTION,
+		WriteCallback
+	);
 
-	const string bridge_base_url = "https://valcon-1.onrender.com";
+	curl_easy_setopt(
+		curl,
+		CURLOPT_WRITEDATA,
+		&response
+	);
 
-	string normalized_path = normalize_path(path);
-	string json = "{\"profile\":\"" + escape_json(profile) + "\",\"path\":\"" + escape_json(normalized_path) + "\"";
-
-	if (!new_name.empty())
-	{
-		json += ",\"new_path\":\"" + escape_json(normalize_path(new_name)) + "\"";
-	}
-
-	json += "}";
-	struct curl_slist* headers = nullptr;
-	headers = curl_slist_append(headers, "Content-Type: application/json");
-
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	string url;
-	if (method == "mkdir")
-	{
-		url = bridge_base_url + "/server_bridge/folders/mkdir";
-
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
-	else if (method == "cd")
-	{
-		url = bridge_base_url + "/server_bridge/folders/check";
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
-	else if (method == "deldir")
-	{
-		url = bridge_base_url + "/server_bridge/folders/delete";
-
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
-	else if (method == "list")
-	{
-		url = bridge_base_url + "/server_bridge/folders/list";
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
-	
-	else if (method == "rename")
-	{
-		url = bridge_base_url + "/server_bridge/folders/rename";
-
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
-	else
-	{
-		curl_slist_free_all(headers);
-		curl_easy_cleanup(curl);
-		return "Unknownn folder operation.";
-	}
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
 
-	CURLcode result = curl_easy_perform(curl);
-	if (result != CURLE_OK)
+	curl_slist result = curl_easy_perform(curl);
+	long http_code = 0;
+
+	if (result == CURLE_OK)
 	{
-		response = "Bridge error: " + string(curl_easy_strerror(result));
+		curl_easy_getinfo(
+			curl,
+			CURLINFO_RESPONSE_CODE,
+			&http_code
+		);
 	}
+
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 
-	if (method == "cd")
+	if (result != CURLE_OK)
 	{
-		if (response.find("\"exists\":true") != string::npos)
-		{
-			return "DIRECTORY_EXISTS";
-		}
-
-		return "directory doesnt exist";
-	}
-	if (method == "mkdir")
-	{
-		if (response.find("\"success\":true") != string::npos)
-		{
-			return "folder created: " + normalized_path;
-		}
-		return "Folder creation Failed" + response ;
-	}
-	if (method == "deldir")
-	{
-		if (response.find("\"success\":true") != string::npos)
-		{
-			return "Folder deleted with all its contents: " + normalized_path;
-		}
-
-		return "folder deletion failed";
-	}
-	if (method == "rename")
-	{
-		if (response.find("\"success\":true") != string::npos)
-		{
-			return "RENAME_SUCCESS";
-		}
-
-		return "Folder rename failed";
-	}
-	if (method == "list")
-	{
-		size_t output_start = response.find("\"output\":\"");
-		if (output_start == string::npos)
-		{
-			return
-				"\n"
-				" ================================================================== \n"
-				"|                       DIRECTORY ERROR                            |\n"
-				" ================================================================== \n"
-				" -->  Could not load directory.";
-		}
-		output_start += 10;
-
-		string output;
-		bool escaped = false;
-
-		for (size_t i = output_start; i < response.size(); i++)
-		{
-			char c = response[i];
-			if (escaped)
-			{
-				if (c == 'n')
-				{
-					output += '\n';
-				}
-				else if (c == 'r')
-				{
-					output += '\r';
-				}
-				else if (c == 't')
-				{
-					output += '\t';
-				}
-				else if (c == '\\')
-				{
-					output += '\\';
-				}
-				else if (c == '"')
-				{
-					output += '"';
-				}
-				else
-				{
-					output += c;
-				}
-				escaped = false;
-			}
-			else
-			{
-				if (c == '\\')
-				{
-					escaped = true;
-				}
-				else if (c == '"')
-				{
-					break;
-				}
-				else
-				{
-					output += c;
-				}
-			}
-		}
-		while (!output.empty() && (output.front() == '\n' || output.front() == '\r' || output.front() == ' '))
-		{
-			output.erase(output.begin());
-		}
-
-		while (!output.empty() && (output.back() == '\n' || output.back() == '\r' || output.back() == ' '))
-		{
-			output.pop_back();
-		}
-
-		string display_path = normalize_path(path);
-
-		replace(
-			display_path.begin(), display_path.end(), '/', '\\'
-		);
-
-		string title;
-		if (display_path.empty())
-		{
-			title = profile;
-		}
-		else
-		{
-			title = profile + "/" + display_path;
-		}
-
-		string furnished_list =
-			"/n"
-			" ================================================================== \n"
-			"|                          VALCON FILESYSTEM                       |\n"
-			" ================================================================== \n"
-			"\n"
-			"\U0001F4C1 " + title + "\n"
-			" |\n";
-
-		if (output.empty())
-		{
-			furnished_list += " |____ (empty directory) \n";
-		}
-		else
-		{
-			furnished_list += output + "\n";
-		}
-
-		furnished_list +=
-			"\n"
-			"|_____________________________________________________________________|";
-		return furnished_list;
+		return "Bridge error: " + string(curl_easy_strerror(result));
 	}
 
-	return response;
+	if (http_code < 200 || http_code >= 300)
+	{
+		return "Bridge HTTP " + to_string(http_code) + ": " + response;
+	}
+
+	auto parsed = crow::json::load(response);
+
+	if (!parsed)
+	{
+		return "Bridge returned invalid JSON";
+	}
+
+	if (parsed["cwd"])
+	{
+		current_path = normalize_path(parsed["cwd"].s());
+	}
+
+	if (!parsed["ok"].b())
+	{
+		if (parsed["message"])
+		{
+			return parsed["message"].s();
+
+			return "Filesystem operation failed ";
+		}
+	}
+
+	auto result_value = parsed["result"];
+
+	if (op == "read" && result_value["content"])
+	{
+		return result_value["content"].s();
+	}
+	if (result_value["message"])
+	{
+		return result_value["message"].s();
+	}
+	if (result_value["output"])
+	{
+		return result_value["output"].s();
+	}
+
+	return "Operation completed.";
 }
 
 string CALCULATOR(string calc_command)
