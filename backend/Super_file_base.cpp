@@ -1133,7 +1133,7 @@ string BRIDGERequest(
 	{
 		return "Invalid profile";
 	}
-	if (!validprofile(current_path))
+	if (!validrelativepath(current_path))
 	{
 		return "Invalid current directory";
 	}
@@ -1192,6 +1192,7 @@ string BRIDGERequest(
 	}
 
 	request_body["confirm"] = confirm;
+	string body = request_body.dump();
 	struct curl_slist* headers = nullptr;
 
 	headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -1201,11 +1202,11 @@ string BRIDGERequest(
 		return "COULD NOT ALLOCATE HTTP HEADERS";
 	}
 
-	string auth_header = "X-VALCON-BRIDGE-KEY" + bridge_key;
+	string auth_header = "X-VALCON-BRIDGE-KEY: " + bridge_key;
 
 	struct curl_slist* updated_headers = curl_slist_append(
 		headers,
-		auth_header.c_str();
+		auth_header.c_str()
 	);
 
 	if (updated_headers == nullptr)
@@ -1275,7 +1276,7 @@ string BRIDGERequest(
 		30L
 	);
 
-	curl_slist result = curl_easy_perform(curl);
+	CURLcode result = curl_easy_perform(curl);
 	long http_code = 0;
 
 	if (result == CURLE_OK)
@@ -1326,7 +1327,7 @@ string BRIDGERequest(
 		return "filesystem opperaton failed";
 	}
 
-	auto& result_value = parsed["result"];
+	auto result_value = parsed["result"];
 
 	if (op == "read" && result_value["content"])
 	{
@@ -1335,7 +1336,7 @@ string BRIDGERequest(
 
 	if (op == "ls" && result_value["entries"])
 	{
-		auto& entries = result_value["entries"];
+		auto entries = result_value["entries"];
 
 		if (entries.size() == 0)
 		{
@@ -1345,7 +1346,7 @@ string BRIDGERequest(
 
 		for (size_t i = 0; i < entries.size(); i++)
 		{
-			auto& entry = entries[i];
+			auto entry = entries[i];
 
 			if (entry["kind"] && entry["kind"].s() == "dir")
 			{
