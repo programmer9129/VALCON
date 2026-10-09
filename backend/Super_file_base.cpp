@@ -956,6 +956,120 @@ string processstrings_profile(
 			new_name
 		);
 	}
+
+	if (command.rfind("move : ", 0) == 0 || command.rfind("copy : ", 0) == 0)
+	{
+		bool is_move = command.rfind("move : ", 0) == 0;
+		string data = command.substr(7);
+		size_t position = 0;
+
+		string source;
+		string destination;
+
+		if (!consume_argument(data, position, source) || !consume_argument(data, position, destination))
+		{
+			return is_move ? "Use: move : <source> <destination-directory>" : "Use: copy : <source> <destination-directory>";
+		}
+
+		while (position < data.size() && isspace(static_cast<unsigned char>(data[position])))
+		{
+			position++;
+		}
+
+		if (position != data.size())
+		{
+			return "Quote paths containing spaces.";
+		}
+
+		if (!validrelativepath(source) || !validrelativepath(destination))
+		{
+			return "INVALID SOURCE OR DEST PATH";
+		}
+
+		string source_path = resolve_path(source);
+		string destination_path = resolve_path(destination);
+
+		if (source_path.empty() || !validrelativepath(source_path) || !validrelativepath(destination_path))
+		{
+			return "INVALID SOURCE OR DEST PATH";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			is_move ? "move" : "copy",
+			source_path,
+			"",
+			"",
+			destination_path
+		);
+	}
+
+	if (command.rfind("stat : ", 0) == 0)
+	{
+		string argument;
+		if (!parse_one(command.substr(7), argument))
+		{
+			return "Use: stat: <path>";
+		}
+
+		if (!validrelativepath(argument))
+		{
+			return "Invalid path";
+		}
+
+		string target = resolve_path(argument);
+
+		return BRIDGEequest(
+			token,
+			profile,
+			current_path,
+			"stat",
+			target
+		);
+	}
+
+	if (command == "tree")
+	{
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"tree"
+		);
+	}
+
+	if (command.rfind("find : ", 0) == 0)
+	{
+		string pattern;
+
+		if (!parse_one(command.substr(7), pattern))
+		{
+			return "USe : find : <glob>";
+		}
+
+		if (pattern.empty())
+		{
+			return "Provide a search pattern.";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"find",
+			"",
+			"",
+			"",
+			"",
+			pattern
+		);
+	}
+
+	return
+		"NO COMMAND FOUND :(  -->" + command + "\n"
+		"TRY help FOR THE COMMAND SHOWCASE";
 }
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* userp)
@@ -974,9 +1088,9 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* user
 	return total;
 }
 
-static string get_end_required(const* char name)
+static string get_env_required(const char* name)
 {
-	const char* value = getenv(name);
+	const char* value = std::getenv(name);
 
 	if (value == nullptr || string(value).empty())
 	{
@@ -999,37 +1113,41 @@ string BRIDGERequest(
 	bool confirm
 )
 {
-	string bridge_url = get_env_required("");
-	string bridge_key = get_env_required("");
+	string bridge_url = get_env_required("BRIDGE_URL");
+	string bridge_key = get_env_required("VALCON_BRIDGE_KEY");
 
 	if (bridge_url.empty())
 	{
-		return "Bridge configuration error: BRIDGE_URL is missing";
+		return "Bridge configuratyion error: URL missing <STATE> <NODE_BRIDGE>";
 	}
 	if (bridge_key.empty())
 	{
-		return "bridge config error: valcon_bridge_key is missing";
+		return "Bridge config error: KEY missing";
 	}
 	if (token.empty())
 	{
-		return "Authentication is required";
+		return "Authentication required";
 	}
 	if (!validprofile(profile))
 	{
-		return "invalid profile";
+		return "Invalid profile";
 	}
-	if (!validrelativepath(current_path))
+	if (!validprofile(current_path))
 	{
-		return "Invalid current path.";
+		return "Invalid current directory";
+	}
+	
+	while (!bridge_url.empty() && bridge_url.back() == '/')
+	{
+		bridge_url.pop_back();
 	}
 
 	CURL* curl = curl_easy_init();
 
-	if (!curl)
+	if (curl == nullptr)
 	{
-		return "CURL initialization error";
+		return "CURL INITIALIZATION FAILED";
 	}
-
 	string response;
 	crow::json::wvalue request_body;
 
@@ -1038,138 +1156,26 @@ string BRIDGERequest(
 	request_body["cwd"] = normalize_path(current_path);
 	request_body["op"] = op;
 
-	if (!path.empty())
+	if (
+		!path.empty() ||
+		op == "cd" ||
+		op == "read" ||
+		op == "delete_file" ||
+		op == "deldir" ||
+		op == "rename" ||
+		op == "move" ||
+		op == "copy"
+		)
 	{
 		request_body["path"] = normalize_path(path);
 	}
+
 	if (!name.empty())
 	{
 		request_body["name"] = name;
 	}
-	if (!content.empty())
-	{
-		request_body["content"] = content;
-	}
-	if (!destination.empty())
-	{
-		request_body["destination"] = normalize_path(destination);
-	}
-	if (!pattern.empty())
-	{
-		request_body["pattern"] = pattern;
-	}
 
-	request_body["confirm"] = confirm;
-	string body = request_body.dump();
-	struct curl_slist* headers = nullptr;
-
-	headers = curl_slist_append(
-		headers,
-		"Content-Type: application/json"
-	);
-
-	string auth_header = "X-VALCON-BRIDGE-KEY: " + bridge_key;
-
-	headers = curl_slist_append(
-		headers,
-		auth_header.c_str()
-	);
-
-	curl_easy_setopt(
-		curl,
-		CURLOPT_HTTPHEADER,
-		headers
-	);
-
-	string url = bridge_url + "/server_bridge/fs";
-
-	curl_easy_setopt(
-		curl,
-		CURLOPT_URL,
-		url.c_str()
-	);
-
-	curl_easy_setopt(curl, CURLOPT_POST, 1L);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-
-	curl_easy_setopt(
-		curl,
-		CURLOPT_WRITEFUNCTION,
-		WriteCallback
-	);
-
-	curl_easy_setopt(
-		curl,
-		CURLOPT_WRITEDATA,
-		&response
-	);
-
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-
-	curl_slist result = curl_easy_perform(curl);
-	long http_code = 0;
-
-	if (result == CURLE_OK)
-	{
-		curl_easy_getinfo(
-			curl,
-			CURLINFO_RESPONSE_CODE,
-			&http_code
-		);
-	}
-
-	curl_slist_free_all(headers);
-	curl_easy_cleanup(curl);
-
-	if (result != CURLE_OK)
-	{
-		return "Bridge error: " + string(curl_easy_strerror(result));
-	}
-
-	if (http_code < 200 || http_code >= 300)
-	{
-		return "Bridge HTTP " + to_string(http_code) + ": " + response;
-	}
-
-	auto parsed = crow::json::load(response);
-
-	if (!parsed)
-	{
-		return "Bridge returned invalid JSON";
-	}
-
-	if (parsed["cwd"])
-	{
-		current_path = normalize_path(parsed["cwd"].s());
-	}
-
-	if (!parsed["ok"].b())
-	{
-		if (parsed["message"])
-		{
-			return parsed["message"].s();
-
-			return "Filesystem operation failed ";
-		}
-	}
-
-	auto result_value = parsed["result"];
-
-	if (op == "read" && result_value["content"])
-	{
-		return result_value["content"].s();
-	}
-	if (result_value["message"])
-	{
-		return result_value["message"].s();
-	}
-	if (result_value["output"])
-	{
-		return result_value["output"].s();
-	}
-
-	return "Operation completed.";
+	if(!)
 }
 
 string CALCULATOR(string calc_command)
