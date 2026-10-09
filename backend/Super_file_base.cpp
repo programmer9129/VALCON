@@ -779,6 +779,7 @@ string processstrings_profile(
 		return BRIDGERequest(
 			token,
 			profile,
+			current_path,
 			"write",
 			"",
 			name,
@@ -928,7 +929,7 @@ string processstrings_profile(
 
 	if (command.rfind("rename : ", 0) == 0 || command.rfind("dir/rename : ", 0) == 0)
 	{
-		size_t prefix_legth = command.rfind("dir/rename : ", 0) == 0 ? 13 : 9;
+		size_t prefix_length = command.rfind("dir/rename : ", 0) == 0 ? 13 : 9;
 
 		string new_name;
 
@@ -1021,7 +1022,7 @@ string processstrings_profile(
 
 		string target = resolve_path(argument);
 
-		return BRIDGEequest(
+		return BRIDGERequest(
 			token,
 			profile,
 			current_path,
@@ -1103,7 +1104,7 @@ static string get_env_required(const char* name)
 string BRIDGERequest(
 	const string& token,
 	const string& profile,
-	string current_path,
+	string& current_path,
 	const string& op,
 	const string& path,
 	const string& name,
@@ -1175,7 +1176,208 @@ string BRIDGERequest(
 		request_body["name"] = name;
 	}
 
-	if(!)
+	if (!content.empty() || op == "write" || op == "append")
+	{
+		request_body["content"] = content;
+	}
+
+	if (!destination.empty() || op == "move" || op == "copy")
+	{
+		request_body["destination"] = normalize_path(destination);
+	}
+
+	if (!pattern.empty())
+	{
+		request_body["pattern"] = pattern;
+	}
+
+	request_body["confirm"] = confirm;
+	struct curl_slist* headers = nullptr;
+
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	if (headers == nullptr)
+	{
+		curl_easy_cleanup(curl);
+		return "COULD NOT ALLOCATE HTTP HEADERS";
+	}
+
+	string auth_header = "X-VALCON-BRIDGE-KEY" + bridge_key;
+
+	struct curl_slist* updated_headers = curl_slist_append(
+		headers,
+		auth_header.c_str();
+	);
+
+	if (updated_headers == nullptr)
+	{
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+
+		return "could not allocate authentication headers.";
+	}
+
+	headers = updated_headers;
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_HTTPHEADER,
+		headers
+	);
+
+	string url =
+		bridge_url + "/server_bridge/fs";
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_URL,
+		url.c_str()
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_POST,
+		1L
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_POSTFIELDS,
+		body.c_str()
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_POSTFIELDSIZE,
+		static_cast<long>(body.size())
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_WRITEFUNCTION,
+		WriteCallback
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_WRITEDATA,
+		&response
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_FOLLOWLOCATION,
+		0L
+	);
+
+	curl_easy_setopt(
+		curl,
+		CURLOPT_TIMEOUT,
+		30L
+	);
+
+	curl_slist result = curl_easy_perform(curl);
+	long http_code = 0;
+
+	if (result == CURLE_OK)
+	{
+		curl_easy_getinfo(
+			curl,
+			CURLINFO_RESPONSE_CODE,
+			&http_code
+		);
+	}
+
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+
+	if (result != CURLE_OK)
+	{
+		return "Bridge error: " + string(curl_easy_strerror(result));
+	}
+	if (http_code < 200 || http_code >= 300)
+	{
+		return "Bridge HTTP " + to_string(http_code) + ": " + response;
+	}
+
+	auto parsed = crow::json::load(response);
+
+	if (!parsed)
+	{
+		return "Bridge returned invalid JSON.";
+	}
+
+	if (parsed["cwd"])
+	{
+		current_path = normalize_path(parsed["cwd"].s());
+	}
+
+	if (!parsed["ok"] || !parsed["ok"].b())
+	{
+		if (parsed["message"])
+		{
+			return parsed["message"].s();
+		}
+
+		if (parsed["code"])
+		{
+			return "Filesys error : " + parsed["code"].s();
+		}
+
+		return "filesystem opperaton failed";
+	}
+
+	auto& result_value = parsed["result"];
+
+	if (op == "read" && result_value["content"])
+	{
+		return result_value["content"].s();
+	}
+
+	if (op == "ls" && result_value["entries"])
+	{
+		auto& entries = result_value["entries"];
+
+		if (entries.size() == 0)
+		{
+			return "(empty directory)";
+		}
+		string output;
+
+		for (size_t i = 0; i < entries.size(); i++)
+		{
+			auto& entry = entries[i];
+
+			if (entry["kind"] && entry["kind"].s() == "dir")
+			{
+				output += "[DIR]  ";
+			}
+			else
+			{
+				output += "[FILE]  ";
+			}
+
+			if (entry["name"])
+			{
+				output += entry["name"].s();
+			}
+
+			output += "\n";
+		}
+
+		return output;
+	}
+
+	if (result_value["message"])
+	{
+		return result_value["message"].s();
+	}
+
+	if (result_value["output"])
+	{
+		return result_value["output"].s();
+	}
+
+	return "Operation completed...";
 }
 
 string CALCULATOR(string calc_command)
