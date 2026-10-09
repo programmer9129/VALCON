@@ -21,30 +21,36 @@
 
 using namespace std;
 
-unordered_map<string, bool> profile_echo_modes;
-mutex profile_state_mutex;
+unordered_map<string, bool> echo_modes_by_token;
+mutex echo_state_mutex;
 const string DATABASE_ADRESS = "DATABASE/";
 
 // defining the session function : change structure if the functions fails to calibrate with the database(like SQLite,SQL)
 
-string processstrings_profile(string order_commands, const string& profile, string& current_path);//command engine here
-string CALCULATOR(string calc_command);//calcualtor here
-int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
-string BRIDGERequest(
-	const string& method,
+string processstrings_profile(
+	string order_commands,
 	const string& profile,
-	const string& path,
-	const string& content = ""
-);
-//bridge to supabase here 
-string FOLDERRequest
-(
-	const string& method,
-	const string& profile,
-	const string& path,
-	const string& new_name = ""
+	string& current_path,
+	const string& token
+);//command engine here
 
+string CALCULATOR(string calc_command);//calcualtor here
+
+int NUMBERIFIER(vector<int> numbers_UNFIED);//unfied numbers here 
+
+string BRIDGERequest(
+	const string& token,
+	const string& profile,
+	string& current_path,
+	const string& op,
+	const string& path = "",
+	const string& name = "",
+	const string& content = "",
+	const string& destination = "",
+	const string& pattern = "",
+	bool confirm = false
 );
+
 string get_parent_Path(const string& path);
 bool directory_name_validity(const string& name);
 
@@ -312,10 +318,24 @@ int main()
 				string profile = body["profile"].s();
 				string current_path = "";
 
+				if (body["cwd"])
+				{
+					current_path = body["cwd"].s();
+				}
+
 				if (body["path"])
 				{
 					current_path = body["path"].s();
 				}
+
+				if (!body["token"])
+				{
+					crow::json::wvalue error;
+					error["success"] = false;
+					error["error"] = "missing token";
+					return crow::response(401, error);
+				}
+				string token = body[token].s();
 
 				if (!validprofile(profile))
 				{
@@ -335,7 +355,7 @@ int main()
 					return res;
 				}
 				std::string command = body["command"].s();
-				std::string result = processstrings_profile(command,profile,current_path);
+				std::string result = processstrings_profile(command,profile,current_path,token);
 				crow::json::wvalue response;
 
 				response["success"] = true;
@@ -359,7 +379,85 @@ int main()
 
 }
 
-string processstrings_profile(string order_commands, const string& profile, string& current_path)
+string trim_copy(const string& input)
+{
+	size_t first = input.find_first_not_of(" \t\r\n");
+
+	if (first == string::npos)
+		return "";
+
+	size_t last = input.find_last_no_of(" \t\r\n");
+
+	return input.substr(first, last - first + 1);
+}
+
+bool consume_argument(
+	const string& input,
+	size_t position,
+	string& argument,
+	)
+{
+	While(position < input.size() && isspace(static_cast<unsigned char>(input[position])))
+	{
+		position++;
+	}
+
+	if (position >= input.size())
+		return false;
+
+	if (input[position] == '""')
+	{
+		position++;
+		string result;
+		while (position < input.size())
+		{
+			char c = input[position++];
+			if (c = '""')
+			{
+				argument = result;
+				return true;
+			}
+
+			if (c == '\\' && position < input.size())
+			{
+				char next = input[position++];
+
+				if (next = '""' || next = '\\')
+					result += next;
+				else
+				{
+					result += '\\';
+					result += next;
+				}
+			}
+			else
+			{
+				result += c;
+			}
+		}
+
+		return false;
+	}
+
+	size_t start = position;
+	while (position < input.size() && !issspace(static_cast<unsigned char>(input[position])))
+	{
+		position++;
+	}
+
+	argument = input.substr(start, position - start);
+
+	return !argument.empty();
+}
+
+string processstrings_profile(
+
+	string order_comm0ands,
+	const string& profile,
+	string& current_path,
+	const string& token
+
+	)
 {
 	size_t search_calculate = order_commands.find("calculate");
 	auto ichy_file_nameworks = order_commands;	
@@ -392,9 +490,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 			return ichy_file_nameworks;
 		}
 	}
-	
-	order_commands.erase(remove(order_commands.begin(), order_commands.end(), ' '), order_commands.end());
-
+		
 	if (ichy_file_nameworks == "pwd")
 	{
 		string path = normalize_path(current_path);
@@ -512,8 +608,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 
 	if (order_commands == "whoami")
 	{
-		return "YOU ARE USER..." + profile + "." + " BEEP BEEP ... I AM HAPPY TO WORK WITH YOU :D \n";
-		return "I HOPE YOU WILL LIKE ME {^-^}";
+		return "YOU ARE USER..." + profile + "...." + "I HOPE YOU WILL LIKE ME {^-^}";
 	}
 	if (order_commands == "help")
 	{
@@ -707,10 +802,7 @@ string processstrings_profile(string order_commands, const string& profile, stri
 		return "no command found :(";
 	}
 }
-//this code is been made for bridge request HAZARD! do not touch this function in any matterr
-// this can delete the whole thing i mean the whole database...
-//althou there is no auto database cleanup so, we need to manualy clear our database :) 
-//@GuruOrGoru please dont change this thing up in any matter...
+
 static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* userp)
 {
 	if (contents == nullptr || userp == nullptr)
@@ -726,168 +818,98 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmeb, void* user
 	);
 	return total;
 }
-string escape_json(const string& input)
-{
-	string output;
 
-	for (char c : input)
+static string get_end_required(const* char name)
+{
+	const char* value = getenv(name);
+
+	if (value == nullptr || string(value).empty())
 	{
-		switch (c)
-		{
-		case '"':
-			output += "\\\"";
-			break;
-		case '\\':
-			output += "\\\\";
-			break;
-		case '\n':
-			output += "\\n";
-			break;
-		case '\r':
-			output += "\\r";
-			break;
-		case '\t':
-			output += "\\t";
-			break;
-		default:
-			output += c;
-			break;
-		}
+		return "";
 	}
 
-	return output;
+	return string(value);
 }
+
 string BRIDGERequest(
-	const string& method,
+	const string& token,
 	const string& profile,
+	string current_path,
+	const string& op,
 	const string& path,
-	const string& content)
+	const string& name,
+	const string& content,
+	const string& destination,
+	const string& pattern,
+	bool confirm
+)
 {
+	string bidge_url = get_env_required("");
+	string bridge_key = get_env_required("");
+
+	if (bridge_url.empty())
+	{
+		return "Bridge configuration error: BRIDGE_URL is missing";
+	}
+	if (bridge_key.empty())
+	{
+		return "bridge config error: valcon_bridge_key is missing";
+	}
+	if (token.empty())
+	{
+		return "Authentication is required";
+	}
 	if (!validprofile(profile))
 	{
-		return "Invalid profile";
+		return "invalid profile";
 	}
-
-	if (!validrelativepath(path))
+	if (!validrelativepath(current_path))
 	{
-		return "Invalid filesystem path.";
+		return "Invalid current path.";
 	}
 
 	CURL* curl = curl_easy_init();
 
 	if (!curl)
-		return "CURL initialization failed";
+	{
+		return "CURL initialization error";
+	}
 
 	string response;
-	string filename = DATABASE_ADRESS + profile + "/Desktop/" + profile;
+	crow::json::wvalue request_body;
+
+	request_body["token"] = token;
+	request_body["profile"] = profile;
+	request_body["cwd"] = normalize_path(current_path);
+	request_body["op"] = op;
+
 	if (!path.empty())
 	{
-		filename += "/" + path;
+		request_body["path"] = normalize_path(path);
 	}
-	const string bridge_base_url = "https://valcon-1.onrender.com";
-	string normalized_path = normalize_path(path);
-
-	string json = "{\"profile\":\"" + profile + "\",\"path\":\"" + normalized_path + "\"";
+	if (!name.empty())
+	{
+		request_body["name"] = name;
+	}
 	if (!content.empty())
 	{
-		json +=
-			",\"content\":\"" + escape_json(content) + "\"";
+		request_body["content"] = content;
 	}
-	json += "}";
+	if (!destination.empty())
+	{
+		request_body["destination"] = normalize_path(destination);
+	}
+	if (!pattern.empty())
+	{
+		request_body["pattern"] = pattern;
+	}
 
+	request_body["confirm"] = confirm;
+	string body = request_body.dump();
 	struct curl_slist* headers = nullptr;
 
-	headers = curl_slist_append(
-		headers,
-		"Content-Type: application/json"
-	);
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		
-	if (method == "create")
-	{
-		string url = bridge_base_url + "/server_bridge/files/create" ;
+}
 
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-
-	}
-	else if (method == "write")
-	{
-		string url =
-			bridge_base_url + "/server_bridge/files/write";
-
-		curl_easy_setopt(curl,CURLOPT_URL,url.c_str());
-		curl_easy_setopt(curl,CURLOPT_POST,	1L);
-		curl_easy_setopt(curl,CURLOPT_POSTFIELDS,json.c_str());
-	}
-	else if (method == "read")
-	{
-		string readURL = bridge_base_url + "/server_bridge/files/read/" + normalized_path;
-
-		curl_easy_setopt(curl, CURLOPT_URL, readURL.c_str());
-		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-
-	}
-	else if (method == "delete")
-	{
-		string deleteURL= bridge_base_url + "/server_bridge/files/delete/" + normalized_path;
-
-		curl_easy_setopt(curl, CURLOPT_URL, deleteURL.c_str());
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-
-
-	}
-	else if (method == "list")
-	{
-		string listURL = bridge_base_url + "/server_bridge/files/list";
-
-		curl_easy_setopt(curl, CURLOPT_URL, listURL.c_str());
-		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
-		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
-	}
-	else
-	{
-		curl_slist_free_all(headers);
-		curl_easy_cleanup(curl);
-	}
-
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-
-	CURLcode result = curl_easy_perform(curl);
-
-	if (result != CURLE_OK)
-	{
-		response =
-			"Bridge error:" + string(curl_easy_strerror(result));
-	}
-	long http_code = 0;
-	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-	curl_slist_free_all(headers);
-	curl_easy_cleanup(curl);
-	if (method == "write")
-	{
-		return "file: " + path + " been updated...";
-	}
-	if (method == "create")
-	{
-		return "file: " + path + " has been created";
-	}
-	if (method == "delete")
-	{
-		return "file: " + path + " is deleted ";
-	}
-	else {
-		return response;
-	}
-	return "HTTP " + to_string(http_code) + "\n" + response;
-
-}// SYSTEM OF BRIDGE NAD FILES ACCESS SYSTEM IS READY NOW BE IN ACTION .!!do not touch the code 
 
 string FOLDERRequest(const string& method, const string& profile, const string& path, const string& new_name)
 {
