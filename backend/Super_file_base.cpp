@@ -108,6 +108,15 @@ string normalize_path(string path)
 
 bool validrelativepath(const string& raw_path)
 {
+	if (!raw_path.empty() && (raw_path.front() == '/' || raw_path.front() == '\\'))
+	{
+		return false;
+	}
+
+	if (raw_path.length() >= 2 && isalpha(static_cast<unsigned char>(raw_path[0])) && raw_path[1] == ':')
+	{
+		return false;
+	}
 	string path = normalize_path(raw_path);
 
 	if (path.length() > 1024)
@@ -169,7 +178,7 @@ string profile_storage_path(const string& profile, const string& relative_path)
 	return result;
 }
 
-string join_relative_path(string& current_path, const string& name)
+string join_relative_path(const string& current_path, const string& name)
 {
 	string current = normalize_path(current_path);
 	string child = normalize_path(name);
@@ -318,15 +327,18 @@ int main()
 				string profile = body["profile"].s();
 				string current_path = "";
 
+
+				//=================================
 				if (body["cwd"])
 				{
 					current_path = body["cwd"].s();
 				}
-
-				if (body["path"])
+				else if (body["path"])
 				{
 					current_path = body["path"].s();
 				}
+				//==================================
+
 
 				if (!body["token"])
 				{
@@ -335,7 +347,7 @@ int main()
 					error["error"] = "missing token";
 					return crow::response(401, error);
 				}
-				string token = body[token].s();
+				string token = body["token"].s();
 
 				if (!validprofile(profile))
 				{
@@ -384,35 +396,45 @@ string trim_copy(const string& input)
 	size_t first = input.find_first_not_of(" \t\r\n");
 
 	if (first == string::npos)
+	{
 		return "";
+	}
 
-	size_t last = input.find_last_no_of(" \t\r\n");
+	size_t last = input.find_last_not_of(" \t\r\n");
 
 	return input.substr(first, last - first + 1);
 }
 
 bool consume_argument(
 	const string& input,
-	size_t position,
-	string& argument,
-	)
+	size_t& position,
+	string& argument
+)
 {
-	While(position < input.size() && isspace(static_cast<unsigned char>(input[position])))
+	while (
+		position < input.size() &&
+		isspace(static_cast<unsigned char>(input[position]))
+		)
 	{
 		position++;
 	}
 
 	if (position >= input.size())
+	{
 		return false;
+	}
 
-	if (input[position] == '""')
+	if (input[position] == '"')
 	{
 		position++;
+
 		string result;
+
 		while (position < input.size())
 		{
 			char c = input[position++];
-			if (c = '""')
+
+			if (c == '"')
 			{
 				argument = result;
 				return true;
@@ -422,8 +444,10 @@ bool consume_argument(
 			{
 				char next = input[position++];
 
-				if (next = '""' || next = '\\')
+				if (next == '"' || next == '\\')
+				{
 					result += next;
+				}
 				else
 				{
 					result += '\\';
@@ -440,7 +464,11 @@ bool consume_argument(
 	}
 
 	size_t start = position;
-	while (position < input.size() && !issspace(static_cast<unsigned char>(input[position])))
+
+	while (
+		position < input.size() &&
+		!isspace(static_cast<unsigned char>(input[position]))
+		)
 	{
 		position++;
 	}
@@ -451,47 +479,108 @@ bool consume_argument(
 }
 
 string processstrings_profile(
-
-	string order_comm0ands,
+	string order_commands,
 	const string& profile,
 	string& current_path,
 	const string& token
-
-	)
+)
 {
-	size_t search_calculate = order_commands.find("calculate");
-	auto ichy_file_nameworks = order_commands;	
-	if (ichy_file_nameworks == "echo")
+	const string command = trim_copy(order_commands);
+
+	if (!validprofile(profile))
 	{
-		lock_guard<mutex> lock(profile_state_mutex);
-		profile_echo_modes[profile] = true;
-		return "LET'S ECHO!, IT WILL BE A FUN I HOPE! ;) . type 'echo stop' to stop echoing.";
+		return " INVALID PROFILE";
 	}
 
-	if (ichy_file_nameworks == "echo stop")
+	if (!validrelativepath(current_path))
 	{
-		lock_guard<mutex> lock(profile_state_mutex);
+		return "INVALID CURRENT PATH";
+	}
 
-		if (profile_echo_modes[profile])
+	if (token.empty())
+	{
+		return "Authentication required.";
+	}
+
+	auto parse_one = [](
+		const string& input,
+		string& value
+		) -> bool
 		{
-			profile_echo_modes[profile] = false;
-			return "echo mode stopped";
+			size_t position = 0;
+
+			if (!consume_argument(input, position, value))
+			{
+				return false;
+			}
+
+			while (position < input.size() && isspace(static_cast<unsigned char>(input[position])))
+			{
+				position++;
+			}
+
+			return position == input.size();
+		};
+
+	auto resolve_path = [&](
+		const string& input
+		) -> string
+		{
+			if (input == ".")
+			{
+				return normalize_path(current_path);
+			}
+
+			if (input == "/")
+			{
+				return "";
+			}
+
+			if (!input.empty() && input.front() == '/')
+			{
+				return normalize_path(input.substr(1));
+			}
+
+			return join_relative_path(current_path, input);
+		};
+
+	//ECHO code :------------------------->>>
+
+	if (command == "echo")
+	{
+		lock_guard<mutex> lock(echo_state_mutex);
+		echo_modes_by_token[token] = true;
+
+		return
+			"ECHO mode started. "
+			"Type 'echo stop' to stop echoing. ";
+	}
+
+	if (command == "echo stop")
+	{
+		lock_guard<mutex> lock(echo_state_mutex);
+		auto it = echo_modes_by_token.find(token);
+
+		if (it != echo_modes_by_token.end() && it->second)
+		{
+			it->second = false;
+
+			return "echo mode has been stopped";
 		}
-		else
+
+		return "echo is already off";
+	}
+	{
+		lock_guard<mutex> lock(echo_state_mutex);
+		auto it = echo_modes_by_token.find(token);
+
+		if (it != echo_modes_by_token.end() && it->second)
 		{
-			return "SORRY I THINK ECHO MODE IS OFF";
+			return command;
 		}
 	}
 
-	{
-		lock_guard<mutex> lock(profile_state_mutex);
-		if (profile_echo_modes[profile])
-		{
-			return ichy_file_nameworks;
-		}
-	}
-		
-	if (ichy_file_nameworks == "pwd")
+	if (command == "pwd")
 	{
 		string path = normalize_path(current_path);
 
@@ -499,307 +588,373 @@ string processstrings_profile(
 
 		if (path.empty())
 		{
-			return "desktop:\\" + profile;
+			return "Desktop:\\" + profile;
 		}
-		return "desktop:\\" + profile + "\\" + path;
+
+		return "Desktop:\\" + profile + "\\" + path;
 	}
 
-	if (ichy_file_nameworks.rfind("mkdir : ", 0) == 0)
+	if (command == "whoami")
 	{
-		string folder_name;
-		folder_name = ichy_file_nameworks.substr(8);
-		if (!directory_name_validity(folder_name))
+		return "You are USER: " + profile;
+	}
+
+	if (command == "introduceyourself")
+	{
+		return
+			"HI! I am VALCON, a browser-based OS like command interface. \n"
+			"I am still under devolopment tho...";
+	}
+
+	if (command == "help")
+	{
+		return
+			"pwd                                   Show the current directory\n"
+			"cd : <path>                           Change directory\n"
+			"cd : ..                               Go to the parent directory\n"
+			"mkdir : <name>                        Create a directory\n"
+			"mkfile : <name>                       Create a file\n"
+			"wrtfile : <name> <content>            Replace file or write file contents\n"
+			"append : <name> <content>             Append file contents\n"
+			"rdfile : <path>                       Read a file\n"
+			"deltfile : <path>                     Delete a file\n"
+			"deldir : <path>                       Delete a directory\n"
+			"deldir : <path> --yes                 Confirm recursize deletion\n"
+			"ls                                    List directory contents\n"
+			"stat : <path>                         Show file information\n"
+			"dir/rename : <new-name>               Rename current directory\n"
+			"rename : <new-name>                   Rename current directory\n"
+			"move : <source> <dest>                Move an enty\n"
+			"copy : <source> <dest>                Copy an entry\n"
+			"tree                                  Display directory tree\n"
+			"find : <glob>                         Find matching entries\n"
+			"grep : <patern>                       Search text files\n"
+			"calculate <expression>=               Calculate an expression";
+	}
+
+	if (command.rfind("calculate", 0) == 0)
+	{
+		if (command.size() > 9 && !isspace(static_cast<unsigned char>(command[9])))
 		{
-			return "Invalid folder name.";
+			return "Use: calculate 5+4=";
 		}
-		string target_path = join_relative_path(current_path, folder_name);
-		return FOLDERRequest("mkdir", profile, target_path);
+
+		return "The answer is: " + CALCULATOR(command.substr(9));
 	}
 
-	if (ichy_file_nameworks == "/cd")
+	if (command.rfind("mkdir : ", 0) == 0)
 	{
-		if (normalize_path(current_path).empty())
+		string name;
+
+		if (!parse_one(command.substr(8), name))
 		{
-			return "already at directory... ";
+			return "Use: mkdir : <name>. Quote names should contain spaces.";
 		}
 
-		current_path = get_parent_Path(current_path);
-
-		return "Directory changed to: " + (normalize_path(current_path).empty() ? string("desktop:\\") + profile : string("desktop:\\") + profile + "\\" + string([](string p)
-			{
-				replace(p.begin(), p.end(), '/', '\\');
-				return p;
-			}(normalize_path(current_path))));
-	}
-
-	if (ichy_file_nameworks.rfind("cd : ", 0) == 0)
-	{
-		string folder_name = ichy_file_nameworks.substr(5);
-		if (!directory_name_validity(folder_name))
+		if (!directory_name_validity(name))
 		{
-			return "Invalid Directory Name.";
+			return "Invalid directory name.";
 		}
 
-		string target_path = join_relative_path(current_path, folder_name);
-		string result = FOLDERRequest("cd", profile, target_path);
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"mkdir",
+			"",
+			name
+		);
+	}
 
-		if (result == "DIRECTORY_EXISTS")
+	if (command == "/cd" || command == "cd : ..")
+	{
+		string target = get_parent_Path(current_path);
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"cd",
+			target
+		);
+	}
+
+	if (command.rfind("cd : ", 0) == 0)
+	{
+		string argument;
+
+		if (!parse_one(command.substr(5), argument))
 		{
-			current_path = target_path;
-			return "Directory changed to: " + (string("desktop:\\") + profile + "\\" + string([](string p)
-			{
-				replace(p.begin(), p.end(), '/', '\\');
-				return p;
-
-			}(normalize_path(current_path))));
-
+			return "Use: cd : <directory>. quote names containing spaces.";
 		}
-		return result;
 
-	}
+		string target;
 
-	if (ichy_file_nameworks.rfind("deldir : ", 0) == 0)
-	{
-		string folder_name = ichy_file_nameworks.substr(9);
-		if (!directory_name_validity(folder_name))
+		if (argument == "..")
 		{
-			return " Invalid folder name...";
+			target = get_parent_Path(current_path);
+		}
+		else
+		{
+			target = resolve_path(argument);
 		}
 
-		string target_path = join_relative_path(current_path, folder_name);
+		if (!validrelativepath(target))
+		{
+			return "Invalid directory path.";
+		}
 
-		return FOLDERRequest("deldir", profile, target_path);
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"cd",
+			target
+		);
 	}
 
-	if (ichy_file_nameworks == "list")
+	if (command == "ls" || command == "list")
 	{
-		return FOLDERRequest("list", profile, current_path);
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"ls"
+		);
 	}
 
-	if (ichy_file_nameworks.rfind("dir/rename : ", 0) == 0)
+	if (command.rfind("mkfile : ", 0) == 0)
 	{
-		string new_name = ichy_file_nameworks.substr(13);
+		string name;
+
+		if (!parse_one(command.substr(9), name))
+		{
+			return "Use: mkfile : <name>.  Quote names containing spaces.";
+		}
+
+		if (!directory_name_validity(name))
+		{
+			return "Invalid filename.";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"mkfile",
+			"",
+			name
+		);
+	}
+
+	if (command.rfind("wrtfile : ", 0) == 0)
+	{
+		string data = command.substr(10);
+
+		size_t position = 0;
+		string name;
+
+		if (!consume_argument(data, position, name))
+		{
+			return "Use: wrtfile: <filename> <content>";
+		}
+
+		if (!directory_name_validity(name))
+		{
+			return "Invalid Filename";
+		}
+
+		if (position >= data.size() || !isspace(static_cast<unsigned char>(data[position])))
+		{
+			return "Provide content after the filename.";
+		}
+
+		while (position < data.size() && isspace(static_cast<unsigned char>(data[position])))
+		{
+			position++;
+		}
+
+		string content = data.substr(position);
+
+		return BRIDGERequest(
+			token,
+			profile,
+			"write",
+			"",
+			name,
+			content
+		);
+	}
+
+	if (command.rfind("append : ", 0) == 0)
+	{
+		string data = command.substr(9);
+
+		size_t position = 0;
+		string name;
+
+		if (!consume_argument(data, position, name))
+		{
+			return "Use: append : <filename> <content>";
+		}
+
+		if (!directory_name_validity(name))
+		{
+			return "Invalid filename.";
+		}
+
+		if (position >= data.size() || !isspace(static_cast<unsigned char>(data[position])))
+		{
+			return "Provide content after the filename.";
+		}
+
+		while (position < data.size() && isspace(static_cast<unsigned char>(data[position])))
+		{
+			position++;
+		}
+
+		string content = data.substr(position);
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"append",
+			"",
+			name,
+			content
+		);
+	}
+	
+	if (command.rfind("rdfile : ", 0) == 0)
+	{
+		string argument;
+
+		if (!parse_one(command.substr(9), argument))
+		{
+			return "Use: rdfile: <path>";
+		}
+
+		if (!validrelativepath(argument))
+		{
+			return "Invalid file path";
+		}
+
+		string target = resolve_path(argument);
+
+		if (!validrelativepath(target))
+		{
+			return "Invalid file path.";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"read",
+			target
+		);
+	}
+
+	if (command.rfind("deltfile : ", 0) == 0)
+	{
+		string argument;
+
+		if (!parse_one(command.substr(11), argument))
+		{
+			return "Use: deltfile : <path>";
+		}
+
+		string target = resolve_path(argument);
+
+		if (!validrelativepath(target))
+		{
+			return "Invalid file path";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"delete_file",
+			target
+		);
+	}
+
+	if (command.rfind("deldir : ", 0) == 0)
+	{
+		string argument = trim_copy(command.substr(9));
+
+		bool confirm = false;
+
+		if (argument.size() >= 6 && argument.compare(argument.size() - 6, 6, " --yes") == 0)
+		{
+			argument = trim_copy(argument.substr(0, argument.size() - 6));
+			confirm = true;
+		}
+
+		string name;
+
+		if (!parse_one(argument, name))
+		{
+			return "Use: deldir : <path> [--yes]";
+		}
+
+		if (validrelativepath(name) || name.empty())
+		{
+			return "Invalid directory path.";
+		}
+
+		string target = resolve_path(name);
+
+		if (!validrelativepath(target) || target.empty())
+		{
+			return "The profile root cannot be deleted";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"deldir",
+			target,
+			"",
+			"",
+			"",
+			"",
+			confirm
+		);
+	}
+
+	if (command.rfind("rename : ", 0) == 0 || command.rfind("dir/rename : ", 0) == 0)
+	{
+		size_t prefix_legth = command.rfind("dir/rename : ", 0) == 0 ? 13 : 9;
+
+		string new_name;
+
+		if (!parse_one(command.substr(prefix_length), new_name))
+		{
+			return "Use: rename : <new-name>";
+		}
 
 		if (!directory_name_validity(new_name))
 		{
-			return "INVALID FOLDERNAME";
+			return "Invalid directory name.";
 		}
 
-		string old_path = normalize_path(current_path);
-
-		if (old_path.empty())
+		if (normalize_path(current_path).empty())
 		{
-			return " the profile directory cant be renamed..";
+			return "The profile root cannot be renamed.";
 		}
 
-		string parent_path = get_parent_Path(old_path);
-		string new_path = join_relative_path(parent_path, new_name);
-		string result = FOLDERRequest("rename", profile, old_path, new_path);
-
-		if (result == "RENAME_SUCCESS")
-		{
-			current_path = new_path;
-
-			return "directory renamed to : " + new_name;
-		}
-
-		return result;
-	}
-
-	if (order_commands == "whoami")
-	{
-		return "YOU ARE USER..." + profile + "...." + "I HOPE YOU WILL LIKE ME {^-^}";
-	}
-	if (order_commands == "help")
-	{
-		return
-			" introduce yourself --> Introduce itself to USER.\n"
-			" who am i --> says who are you to VALCON \n"
-			" calculate {your calculation input} --> Calculate The Calculation Input. give the command like 'calculate 5+4=' \n"
-			" echo --> echo what the USER says. \n"			
-			" mkfile : {name of the file}.txt --> create the file USER want. \n "
-			" wrtfile : {name of the file}.txt {context of the file} --> write the txt context into the file you gave \n"
-			" rdfile : {name of the file}.txt --> the terminal will show you what in written in the file \n"
-			" deltfile : {name of the file}.txt ==> CAREFUL! this command will delete your text file \n"
-			" lsfile --> this command will show the list of the files in the database \n"
-			"\n"
-			"\n"
-			"\n"
-			"NOTE: THIS IS A UNDER_DEVOLOPING PROJECT SO, THERE IS NOT MUCH FEATURES LIKE THE NAME ITSELF...\n"
-			"      WE HOPE YOU WILL LIKE 'VALCON'\n  "
-			"      WE ARE WORKING ON MANY FEATURES.. AND THAT WILL TAKE TIME, ON NEXT UPDATE, WE HOPE WE CAN IMPRESS YOU MORE! ";
-	}
-	if (order_commands == "introduceyourself")
-	{
-		return
-			" Hi!, I am Valcon .A Web CLI Application, I can do much things. \n"
-			"I am still Under devolopment please don't mind... :) \n"
-			"My creators are trying to make me improved and better. ;) \n"
-			"btw nice to meet YOU!.\n"
-			"What can I do for you now ? :D ";
-	}
-	if (order_commands == "pwd")
-	{
-		string path = normalize_path(current_path);
-		if (path.empty())
-		{
-			return "desktop:\\" + profile;
-		}
-		replace(path.begin(), path.end(), '/', '\\');
-
-		return "desktop:\\" + profile + "\\" + path;
-	}
-	if (search_calculate != std::string::npos)
-	{
-		std::string calc_command = order_commands.substr(9);
-		std::string answer = CALCULATOR(calc_command);
-		return "the anser is :--> " + answer;
-	}
-	if (ichy_file_nameworks.rfind("mkfile : ", 0) == 0)
-	{
-		string ichyname = ichy_file_nameworks.substr(9);
-		if (ichyname.find(".txt") == string::npos)
-		{
-			ichyname += ".txt";
-			string target_path = join_relative_path(current_path, ichyname);
-			return BRIDGERequest("create", profile, target_path);
-		}
-		else if (ichyname.find(".txt") != string::npos)
-		{
-			string target_path = join_relative_path(current_path, ichyname);
-			return BRIDGERequest("create", profile, target_path);
-			
-		}
-		else
-		{
-			return "Sorry! USER, That feature is still under devolopment,\n"
-				"   we are already researching on that ,hope next time if,\n"
-				"   no massacare or difficulties happens YOU will see your needed feature here .";
-		}
-	}
-	if (ichy_file_nameworks.rfind("wrtfile : ", 0) == 0)
-	{
-		string data = ichy_file_nameworks.substr(10);
-		size_t space = data.find(' ');
-
-		if (space == string::npos)
-		{
-			return "OHHH! USE THIS FORMAT PLEASE {^-^}file write : <FILENAME> <CONTENT> ";
-		}
-
-		string NAME_OF_THE_FILES = data.substr(0, space);
-		string CONTENT_OF_THE_FILE = data.substr(space + 1);
-
-		if (NAME_OF_THE_FILES.find(".txt") == string::npos)
-		{
-			NAME_OF_THE_FILES += ".txt";
-		}
-		string target_path = join_relative_path(current_path, NAME_OF_THE_FILES);
-		return BRIDGERequest("write", profile, target_path, CONTENT_OF_THE_FILE);
-	}
-	if (ichy_file_nameworks.rfind("rdfile : ", 0)==0)
-	{
-		string ichyname = ichy_file_nameworks.substr(9);
-
-		if (ichyname.find(".txt") == string::npos)
-		{
-			ichyname += ".txt";
-		}
-		string target_path = join_relative_path(current_path, ichyname);
-		std::string result_of_read = BRIDGERequest("read", profile, target_path);
-		size_t content_start = result_of_read.find("\"content\":\"");
-		if (content_start != string::npos)
-		{
-			content_start += 11;
-			size_t content_end = result_of_read.find("\"", content_start);
-			if (content_end != string::npos)
-			{
-				return result_of_read.substr(content_start, content_end - content_start);
-			}
-		}
-		return "READ FAILED :(";
-		
-	}
-	if (ichy_file_nameworks.rfind("deltfile : ",0) == 0)//CODE TO DELETE
-	{
-		string ichyname = ichy_file_nameworks.substr(11);
-
-		if (ichyname.find(".txt") == string::npos)
-		{
-			 ichyname += ".txt";
-		}
-
-		string target_path = join_relative_path(current_path, ichyname);
-
-		return BRIDGERequest("delete", profile, target_path);
-		
-	}
-	/*
-	if (ichy_file_nameworks.rfind("lsfile", 0) == 0)//LIST CODE
-	{
-		string result_of_list = BRIDGERequest("list", profile, current_path);
-		size_t files_start = result_of_list.find("\"files\":[");
-		if (files_start == string::npos)
-		{
-			return "Could not load your files.";
-		}
-
-		files_start += 9;
-		string furnished_list =
-			"\n"
-			"Your files\n"
-			"-------------------------\n";
-
-		int file_count = 0;
-		size_t position = files_start;
-
-		while (true)
-		{
-			size_t name_start =	result_of_list.find("\"name\":\"", position);
-			
-			if (name_start == string::npos)
-				break;
-
-			name_start += 8;
-			size_t name_end = result_of_list.find("\"", name_start);
-
-			if (name_end == string::npos)
-				break;
-
-			string filename = result_of_list.substr(name_start,name_end - name_start);
-			if (filename == ".emptyFolderPlaceholder")
-			{
-				position = name_end + 1;
-				continue;
-			}
-			file_count++;
-
-			furnished_list += "  " + to_string(file_count) + ". " + filename + "\n";
-			position = name_end + 1;
-		}
-		if (file_count == 0)
-		{
-			furnished_list += "  No files yet.\n";
-		}
-		furnished_list += "-------------------------\n";
-
-		if (file_count == 1)
-		{
-			furnished_list += "1 file";
-		}
-		else
-		{
-			furnished_list += to_string(file_count) + " files";
-		}
-		return furnished_list;
-	}*/
-	
-	//blocked file listing due to un depedency but keepin it for tests
-
-
-	else
-	{
-		return "no command found :(";
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"rename",
+			normalize_path(current_path),
+			new_name
+		);
 	}
 }
 
