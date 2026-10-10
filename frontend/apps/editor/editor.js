@@ -115,5 +115,128 @@ export function startEditor(root, win, appmanager) {
     activeId = id;
 
     const tab = activeTab();
+
+    text.value = tab?.content ?? "";
+    text.disabled = !tab;
+    text.scrollTop = 0;
+    text.scrollLeft = 0;
+
+    syncGutter();
+    syncStatus();
+    updateDirtyUI();
+  }
+
+  function countLines(value) {
+    let count = 1;
+
+    for (let i = 0; i < value.length; i++) {
+      if (value.charCodeAt(i) === 10) count++;
+    }
+    return count;
+  }
+
+  function syncGutter() {
+    const lines = countLines(text.value);
+
+    if (lines !== lineCount) {
+      lineCount = lines;
+      gutter.textContent = Array.from(
+        { length: lines },
+        (_, index) => index + 1,
+      ).join("\n");
+    }
+    gutter.style.transform = `translateY(${-text.scrollTop}px)`;
+  }
+
+  function syncStatus() {
+    const tab = activeTab();
+
+    if (!tab) {
+      pathEl.textContent = "No file open";
+      metaEl.textContent = "";
+      return;
+    }
+
+    const before = text.value.slice(0, text.selectionStart);
+    const row = countLines(before);
+    const lastNewLine = before.lastIndexOf("\n");
+    const col = before.length - lastNewLine;
+
+    pathEl.textContent = tab.path;
+    metaEl.textContent = `Ln ${row}, col ${col} · ${(text.value.length / 1024).toFixed(1)} KB`;
+  }
+
+  function markDirty() {
+    const tab = activeTab();
+
+    if (!tab) return;
+    tab.content = text.value;
+    tab.dirty = tab.content !== tab.savedContent;
+
+    updateDirtyUI();
+    syncGutter();
+    syncStatus();
+  }
+
+  function showDialog(mode) {
+    dialogMode = mode;
+    dialogTitle.textContent = mode === "open" ? "Open file" : "Save file as";
+    dialog.querySelector('[type="submit"]').textContent =
+      mode === "open" ? "Open" : "Save";
+
+    dialogPath.value = mode === "saveas" ? (activeTab()?.path ?? "") : "";
+
+    dialogError.textContent = "";
+    overlay.hidden = false;
+    dialogPath.focus();
+  }
+
+  function hideDialog() {
+    overlay.hidden = true;
+    text.focus();
+  }
+
+  function validatePath(value) {
+    const path = normalizePath(value.trim());
+
+    if (!path) {
+      throw new Error("Enter a file path.");
+    }
+
+    if (path.split("/").some((part) => part.length > 255)) {
+      throw new Error("A path component is too long.");
+    }
+
+    return path;
+  }
+
+  async function openPath(rawPath) {
+    const path = validatePath(rawPath);
+    const existing = tabs.find((tab) => tab.path === path);
+
+    if (existing) {
+      activateTab(existing.id);
+      return;
+    }
+
+    status("Opening...");
+
+    const requestId = ++operationId;
+
+    const response = await fs("read", { path });
+
+    const result = response.result;
+
+    if (requestId !== operationId || disposed) return;
+
+    if (typeof result.content !== "string") {
+      throw new FsError(
+        "BAD_RESPONSE",
+        "The server did not return text content bruh.",
+        response.cwd,
+      );
+    }
+
+    const byteLength = new TextEncoder().encode(result.content).byteLength;
   }
 }
