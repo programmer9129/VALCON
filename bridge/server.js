@@ -13,7 +13,7 @@ const FS_CONTRACT = require("./fs-contract.json");
 const FS_OPERATIONS = new Set(FS_CONTRACT.request.properties.op.enum);
 const FS_ERROR_STATUS = FS_CONTRACT.errors;
 
-class FSError extends Error {
+class FsError extends Error {
     constructor(code, message) {
         super(message);
 
@@ -66,6 +66,239 @@ function sendFsError(res, error, cwd = "") {
         cwd
     });
 }
+
+function requireValconBridgeKey(req, res, next){
+    const configured = process.env.VALCON_BRIDGE_KEY;
+    const recieved = req.get("X-VALCON-BRIDGE-KEY");
+
+    if (!configured || !recieved){
+        return sendFsError(
+            res,
+            new FsError(
+                "FORBIDDEN",
+                "Bridge authentication required."
+            )
+        );
+    }
+
+    const expectedBuffer = Buffer.from(configured);
+    const recievedBuffer = Buffer.from(recieved);
+
+    if (
+        expectedBuffer.length !== recievedBuffer.length ||
+        !require("crypto").timingSafeEqual(
+            expectedBuffer,
+            recievedBuffer
+        )
+    ){
+        return sendFsError(res, new FsError(
+            "FORBIDDEN",
+            "Bridge authentication required."
+
+        ));
+    }
+
+    next();
+}
+
+async function authenticateFilesystemRequest(token) {
+    if (typeof token !== "string" || token.length === 0) {
+        throw new FsError(
+            "UNAUTHORIZED",
+            "Authentication required."
+        );
+    }
+
+    const userSupabase = createUserSupabase(token);
+
+    const { data, error } =
+        await userSupabase.auth.getUser(token);
+
+    if (error || !data || !data.user) {
+        throw new FsError(
+            "UNAUTHORIZED",
+            "Invalid or expired authentication token."
+        );
+    }
+
+    return {
+        supabase: userSupabase,
+        user: data.user
+    };
+}
+
+function normalizeFsPath(rawPath) {
+    if (typeof rawPath !== "string") {
+        throw new FsError(
+            "INVALID_PATH",
+            "path must be a string."
+        );
+    }
+
+    if (rawPath.length > 1024) {
+        throw new FsError(
+            "INVALID_PATH",
+            "path exceeds the maximum length"
+        );
+    }
+
+    if (rawPath.startsWith("/") || rawPath.startsWith("\\") || /^[A-Za-z]:/.test(rawPath)) {
+        throw new FsError(
+            "INVALID_PATH",
+            "path exceeds the maximum length"
+        );
+    }
+    const normalized = rawPath.replace(/\\/g, "/");
+    if (normalized === "") {
+        return "";
+    }
+
+    const parts = normalized.split("/");
+
+    for (const part of parts) {
+        if (
+            part === "" || part === "." || part === ".."
+        ) {
+            throw new FsError(
+                "INVALID_PATH",
+                "path contains an invalid component"
+            );
+        }
+
+        if (/[\u0000-\u001F\u007F]/u.test(part)) {
+            throw new FsError(
+                "INVALID_PATH",
+                "Control characters are not allowed in paths."
+            );
+        }
+
+    }
+    return parts.join("/");
+}
+
+
+function validateFsName(rawName) {
+    if (typeof rawName !== "string") {
+        throw new FsError(
+            "INVALID_NAME",
+            "Name must be a string."
+        );
+    }
+
+    if (
+        rawName.length === 0 ||
+        Array.from(rawName).length > 255 ||
+        rawName === "." ||
+        rawName === ".." ||
+        rawName.includes("/") ||
+        rawName.includes("\\") ||
+        /[\u0000-\u001F\u007F]/u.test(rawName)
+    ) {
+        throw new FsError(
+            "INVALID_NAME",
+            "Invalid filename or directory name."
+        );
+    }
+
+    return rawName;
+}
+
+
+function validateFsProfile(rawProfile) {
+    if (
+        typeof rawProfile !== "string" ||
+        !/^[A-Za-z0-9_-]{1,64}$/.test(rawProfile)
+    ) {
+        throw new FsError(
+            "INVALID_NAME",
+            "Invalid profile name."
+        );
+    }
+
+    return rawProfile;
+}
+
+function createUserSupabase(token) {
+    if (!process.env.SUPABASE_URL || !SUPABASE_PUBLIC_KEY){
+        throw new FsError(
+            "INTERNAL",
+            "Supabase public configuration is missing."
+        );
+    }
+
+    return createClient(
+        process.env.SUPABASE_URL,
+        SUPABASE_PUBLIC_KEY,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
+            },
+            global: {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        }
+    );
+}
+
+async function findOrCreateFsRoot(userSupabase, user,profile){
+    const selectRoot = () => {
+        return userSupabase.from("fs_entries").select(
+            "id, owner_id, profile, parent_id, name, kind, size, storage_key, created_at, updated_at"
+        )
+            .eq("owner_id", user.id)
+            .eq("profile", profile)
+            .is("parent_id", null)
+            .maybeSingle();
+    };
+
+    const existing = await selectRoot();
+
+    if (existing.error)
+    {
+        throw existing.error;
+    }
+
+    if (existing.data)
+    {
+        return existing.data;
+    }
+
+    const inserted = await userSupabase
+        .from("fs_entries")
+        .insert({
+            owner_id: user.id,
+            profile,
+            parent_id: null,
+            name: profile,
+            kind: "dir",
+            size: 0,
+            storage_key: null
+        })
+        .select(
+            "id, owner_id, profile, parent_id, name, kind, size, storage_key, created_at, updated_at"
+        )
+        .single();
+
+    if(!inserted.error)
+    {
+        return inserted.data;
+    }
+
+    if (inserted.error.code === "23505"){
+        const retry = await selectRoot();
+
+        if (!retry.error && retry.data){
+            return retry.data;
+        }
+    }
+    throw inserted.error;
+}
+
+
 
 
 const CPP_BACKEND_URL = (process.env.CPP_BACKEND_URL || "").replace(/\/+$/, "");

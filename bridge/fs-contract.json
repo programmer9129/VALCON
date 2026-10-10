@@ -4,6 +4,7 @@
   "request": {
     "required": [
       "token",
+      "profile",
       "cwd",
       "op"
     ],
