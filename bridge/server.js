@@ -4,12 +4,68 @@ const express = require("express");
 const cors = require("cors");
 const {createClient} = require("@supabase/supabase-js");
 const BUCKET_NAME = "valcon-files";
-const FS_CONTRACT = require("./fs-contract.json");
+const SUPABASE_PUBLIC_KEY =
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    "";
 
+const FS_CONTRACT = require("./fs-contract.json");
 const FS_OPERATIONS = new Set(FS_CONTRACT.request.properties.op.enum);
-const FS_ERROR_STATUS = FS_CONTRACT.error;
+const FS_ERROR_STATUS = FS_CONTRACT.errors;
 
-const FS_CONTRACT = require("./fs-contract.json");
+class FSError extends Error {
+    constructor(code, message) {
+        super(message);
+
+        this.name = "FsError";
+        this.code = code;
+    }
+}
+
+
+function sendFsSuccess(res, result = {}, cwd = ""){
+    return res.status(200).json({
+        ok: true,
+        result,
+        cwd
+    });
+}
+
+function sendFsError(res, error, cwd = "") {
+    const requestedCode =
+        error && typeof error.code === "string"
+            ? error.code
+            : "";
+
+    const code =
+        Object.prototype.hasOwnProperty.call(
+            FS_ERROR_STATUS,
+            requestedCode
+        )
+            ? requestedCode
+            : "INTERNAL";
+
+    const status = FS_ERROR_STATUS[code];
+
+    let message;
+
+    if (code === "INTERNAL") {
+        console.error("VALCON FILESYSTEM ERROR:", error);
+        message = "Internal filesystem error.";
+    } else {
+        message =
+            error && typeof error.message === "string"
+                ? error.message
+                : code;
+    }
+
+    return res.status(status).json({
+        ok: false,
+        code,
+        message,
+        cwd
+    });
+}
 
 
 const CPP_BACKEND_URL = (process.env.CPP_BACKEND_URL || "").replace(/\/+$/, "");
