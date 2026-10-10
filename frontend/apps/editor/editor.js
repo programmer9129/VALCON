@@ -238,5 +238,87 @@ export function startEditor(root, win, appmanager) {
     }
 
     const byteLength = new TextEncoder().encode(result.content).byteLength;
+
+    if (byteLength > MAX_BYTES) {
+      throw new FsError(
+        "TOO_LARGE",
+        "This editor limits files to 2 MB. Use a larger-file editor for this file",
+        response.cwd,
+      );
+    }
+
+    const tab = {
+      id: crypto.randomUUID(),
+      path,
+      name: basename(path),
+      content: result.content,
+      savedContent: result.content,
+      etag: result.etag ?? null,
+      dirty: false,
+      warning: byteLength > WARN_BYTES,
+    };
+
+    tabs.push(tab);
+    activateTab(tab.id);
+    status(tab.warning ? "Large text file" : "File opened");
+  }
+
+  function confirmDiscard(message, onConfirm) {
+    if (window.confirm(message)) onConfirm();
+  }
+
+  function closeTab(id) {
+    const index = tabs.findIndex((tab) => tab.id === id);
+    if (index === -1) return;
+
+    const tab = tabs[index];
+
+    const remove = () => {
+      const wasActive = activeId === id;
+      tabs.splice(index, 1);
+
+      if (wasActive) {
+        activeId = null;
+        const next = tabs[Math.min(index, tabs.length - 1)];
+
+        if (next) {
+          activateTab(next.id);
+        } else {
+          text.value = "";
+          text.disabled = true;
+          syncGutter();
+          syncStatus();
+        }
+      }
+      renderTabs();
+      updateDirtyUI();
+      status("Tab closed");
+    };
+
+    if (tab.dirty) {
+      confirmDiscard(`${tab.name} has unsaved changes. Wanna discard?`, remove);
+    } else {
+      remove();
+    }
+  }
+
+  async function save(tab = activeTab(), asPath = null, overwrite = false) {
+    if (!tab) {
+      status("No file open");
+      return;
+    }
+    const target = validatePath(asPath ?? tab.path);
+
+    if (!tab.dirty && target === tab.path) {
+      status("No changes to save");
+      return;
+    }
+
+    const content = tab.content;
+    status("Saving...");
+
+    try {
+      const { result }
+    }
   }
 }
