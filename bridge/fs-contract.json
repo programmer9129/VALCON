@@ -39,8 +39,11 @@
           "rename",
           "move",
           "copy",
+          "stat",
           "tree",
-          "find"
+          "du",
+          "find",
+          "grep"
         ]
       },
 

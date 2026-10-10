@@ -8,6 +8,7 @@ const SUPABASE_PUBLIC_KEY =
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
     "";
+const { randomUUID } = require ("node:crypto");
 
 const FS_CONTRACT = require("./fs-contract.json");
 const FS_OPERATIONS = new Set(FS_CONTRACT.request.properties.op.enum);
@@ -243,6 +244,125 @@ function createUserSupabase(token) {
         }
     );
 }
+
+function fsRaise(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    throw error;
+}
+
+function fsCleanPath(value){
+    if (value === undefined || value === null)
+    {
+        return "";
+    }
+
+    if (typeof value !== "string"){
+        fsRaise("INVALID PATH", "The path must be a string.");
+    }
+
+    const raw = value.trim().replace(/\\/g, "/");
+
+    if (
+        raw.startWith("/") || /^[a-zA-Z]:/.test(raw) || raw.length > 1024
+    ){
+        fsRaise("INVALID_PATH", "invalid file sytem path");
+    }
+
+    const parts = raw.split("/").filter(Boolean);
+
+    if (parts.some(part => part === "." || part === ".."))
+    {
+        fsRaise("INVALID_PATH", "Path traversal is not allowed ");
+    }
+
+    return parts.join("/");
+}
+
+function fsCleanName(value) {
+    if (typeof value !== "string"){
+        fsRaise("INVALID_NAME", "a name is required");
+    }
+
+    const name = value.trim();
+    if(
+        !name ||
+        name.length > 255 ||
+        name === "." ||
+        name === ".." ||
+        /[\/\\\u0000-\u001f\u007f]/u.test(name)
+    ){
+        fsRaise("INVALID_PATH", "invalid file or directory name.");
+    }
+    return name;
+}
+
+function fsCheckDatabaseError(error) {
+    if (error?.code === "23505")
+    {
+        fsRaise(
+            "ALREADY_EXISTS",
+            "An entry with that name already exists."
+        );
+    }
+
+    throw error;
+}
+
+async function fsGetChildren(
+    userSupabase,
+    user,
+    profile,
+    parentId
+){
+    const entries = [];
+    let offset = 0;
+    const pageSize = 1000;
+
+    while (true){
+        const { data, error } = await userSupabase
+            .from("fs_entries")
+            .select("*")
+            .eq("owner_id", user.id)
+            .eq("profile", profile)
+            .eq("parent_id", parentId)
+            .order("name", {ascending: true})
+            .range(offset, offset + pageSize - 1);
+
+        if (error)
+        {
+            throw error;
+        }
+
+        entries.push(...(data || []));
+
+        if(!data || data.length < pageSize){
+            break;
+        }
+
+        offset += pageSize;
+        if (entries.length >= 5000){
+            fsRaise(
+                "TOO_MANY_ENTRIES",
+                "The directory contains too many entries to list at once."
+            );
+        }
+    }
+    return entries;
+}
+
+async function fsGetChild(
+    userSupabase,
+    user,
+    profile,
+    parentId,
+    name
+){
+    const {}
+
+}
+
+
 
 async function findOrCreateFsRoot(userSupabase, user,profile){
     const selectRoot = () => {
