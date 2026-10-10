@@ -354,7 +354,7 @@ const PORT = process.env.PORT || 3000;//dont change this varieable
 
 app.use(express.json());
 
-app.post("/server_bridge", requireValconBridgeKey,
+app.post("/server_bridge/fs", requireValconBridgeKey,
     async (req,res) => {
         let cwd = "";
 
