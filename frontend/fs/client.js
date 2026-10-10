@@ -27,6 +27,7 @@ export async function fs(op, { cwd = "", ...args } = {}) {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   let response;
+
   try {
     response = await fetch(BASE, {
       method: "POST",
@@ -42,7 +43,11 @@ export async function fs(op, { cwd = "", ...args } = {}) {
       throw new FsError("TIMEOUT", "The filesystem request timed out.", cwd);
     }
 
-    throw new FsError("Network", "Could not reach the backent..", cwd);
+    throw new FsError(
+      "NETWORK",
+      "Could not reach the filesystem backend.",
+      cwd,
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -50,11 +55,11 @@ export async function fs(op, { cwd = "", ...args } = {}) {
   let data;
 
   try {
-    data = await responsse.json();
+    data = await response.json();
   } catch {
     throw new FsError(
-      "BAD_RESP",
-      `Server returned invalid response (${response.status}).`,
+      "BAD_RESPONSE",
+      `The server returned an invalid response (${response.status}).`,
       cwd,
     );
   }
@@ -62,18 +67,19 @@ export async function fs(op, { cwd = "", ...args } = {}) {
   if (!response.ok || data?.ok !== true) {
     throw new FsError(
       data?.code || `HTTP_${response.status}`,
-      data?.message || `Request failed Fs (${response.status})`,
+      data?.message || `Filesystem request failed (${response.status}).`,
       data?.cwd ?? cwd,
     );
   }
 
   if (!("result" in data)) {
     throw new FsError(
-      "BAD_RESP",
+      "BAD_RESPONSE",
       "The server response is missing its result.",
       cwd,
     );
   }
+
   return data;
 }
 
@@ -82,7 +88,7 @@ export const basename = (path = "") =>
 
 export const dirname = (path = "") => {
   const parts = path.split("/").filter(Boolean);
-  parts.pop;
+  parts.pop();
   return parts.join("/");
 };
 
@@ -96,5 +102,9 @@ export function normalizePath(path = "") {
       if (parts.length) parts.pop();
       continue;
     }
+
+    parts.push(part);
   }
+
+  return parts.join("/");
 }

@@ -1,0 +1,119 @@
+.editor {
+  --editor-line-height: 1.5;
+  --editor-pad: 16px;
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  background: var(--bg, #0b0e14);
+  color: var(--text, #d8dee9);
+  font:
+    14px "JetBrains Mono",
+    "Fire Code",
+    ui-monospace,
+    monospace;
+}
+
+.editor * {
+  box-sizing: border-box;
+}
+
+.editor button,
+.editor input {
+  font: inherit;
+}
+
+.editor button {
+  color: var(--text, #d8dee9);
+  background: var(--surface, #11151d);
+  border: 1px solid var(--border, #303744);
+  border-radius: 5px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.editor button:hover {
+  background: var(--surface-raise, #181e28);
+}
+
+.editor button:focus-visible,
+.editor input:focus-visible,
+.editor textarea:focus-visible {
+  outline: 2px solid var(--accent, #1793d1);
+  outline-offset: -2px;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  flex-shrink: 0;
+  background: var(--surface, #11151d);
+  border-bottom: 1px solid var(--border, #303744);
+}
+
+.editor-toolbar-spacer {
+  flex: 1;
+}
+
+.editor-toolnbar-status {
+  color: var(--muted, #9da7b6);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  background: var(--surface, #11151d);
+  border-bottom: 1px solid var(--border, #303744);
+}
+
+.editor-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--muted, #9da7b6);
+  font-size: 12px;
+}
+
+.editor-tab.active {
+  background: var(--surface-raised, #181e28);
+  color: var(--text, #d8dee9);
+  border-color: var(--border, #303744);
+}
+
+.editor-tab.dirty .editor-tab-name::after {
+  content: " •";
+  color: var(--accent, #1793d1);
+}
+
+.editor-tab-close,
+.editor-tab-add {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 1px 4px !important;
+}
+
+.editor-tab-close:hover {
+  color: var(--danger, #ef4444);
+}

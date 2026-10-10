@@ -1,0 +1,64 @@
+<div class="editor">
+  <div class="editor-toolbar">
+    <button type="button" data-action="open">Open</button>
+    <button type="button" data-action="save">Save</button>
+    <button type="button" data-action="save-as">Save as</button>
+    <span class="editor-toolbar-spacer"></span>
+    <span class="editor-toolbar-status">Ready</span>
+  </div>
+
+  <div class="editor-tabs" role="tablist"></div>
+
+  <div class="editor-canvas">
+    <div class="editor-gutter" aria-hidden="true">
+      <div class="editor-gutter-inner">1</div>
+    </div>
+
+    <textarea
+      class="editor-text"
+      spellcheck="false"
+      autocomplete="off"
+      autocapitalize="off"
+      wrap="off"
+      disabled
+      aria-label="File contents"
+      placeholder="Open a file to start editing"
+    ></textarea>
+  </div>
+
+  <div class="editor-status">
+    <div class="editor-status-left">
+      <span class="editor-path">No file open</span>
+      <span class="editor-badge" hidden></span>
+    </div>
+
+    <div class="editor-status-right">
+      <span class="editor-meta"></span>
+      <button type="button" class="editor-wrap-btn">Word wrap</button>
+    </div>
+  </div>
+
+  <div class="editor-overlay" hidden>
+    <form class="editor-dialog">
+      <h3 class="editor-dialog-title">Open file</h3>
+
+      <input
+        class="editor-dialog-path"
+        type="text"
+        placeholder="path/to/file.txt"
+        spellcheck="false"
+        autocomplete="off"
+        required
+      />
+
+      <p class="editor-dialog-error" role="alert"></p>
+
+      <div class="editor-dialog-actions">
+        <button type="button" class="editor-btn" data-dismiss>Cancel</button>
+        <button type="submit" class="editor-btn editor-btn-primary">
+          Open
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
