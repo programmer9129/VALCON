@@ -298,7 +298,48 @@ async function findOrCreateFsRoot(userSupabase, user,profile){
     throw inserted.error;
 }
 
+async function resolveFsDirectory(
+    userSupabase,
+    user,
+    profile,
+    root,
+    relativePath
+){
+    let current = root;
+    if (relativePath === "")
+    {
+        return current;
+    }
 
+    const parts = relativePath.split("/");
+
+    for (const part of parts){
+        const {data, error} = await userSupabase.from("fs_entries").select(
+            "id, owner_id, profile, parent_id, name, kind, size, storage_key, created_at, updated_at"
+        )
+            .eq("owner_id", user.id)
+            .eq("profile", profile)
+            .eq("parent_id", current.id)
+            .eq("name", part)
+            .eq("kind", "dir")
+            .maybeSingle();
+        if (error) {
+            throw error;
+        }
+
+        if (!data)
+        {
+            throw new FsError(
+                "NOT_FOUND",
+                `directory '${relativePath}' doesn't exist.`
+            );
+        }
+
+        current = data;
+
+    }
+    return current;
+}
 
 
 const CPP_BACKEND_URL = (process.env.CPP_BACKEND_URL || "").replace(/\/+$/, "");
@@ -312,6 +353,174 @@ const supabase = createClient(
 const PORT = process.env.PORT || 3000;//dont change this varieable
 
 app.use(express.json());
+
+app.post("/server_bridge", requireValconBridgeKey,
+    async (req,res) => {
+        let cwd = "";
+
+        try{
+            const body = req.body || {};
+
+            if (
+                typeof body.token !== "string" ||
+                body.token.length === 0
+            ){
+                throw new FsError(
+                    "UNAUTHORIZED",
+                    "Authentication required"
+                );
+            }
+
+            const authenticated = await authenticateFilesystemRequest(body.token);
+            const userSupabase = authenticated.supabase;
+            const user = authenticated.user;
+
+            const profile = validateFsProfile(body.profile);
+
+            cwd = normalizeFsPath(body.cwd);
+
+            if ( typeof body.op !== "string" || !FS_OPERATIONS.has(body.op))
+            {
+                throw new FsError(
+                    "UNSUPPORTED",
+                    "Unknown filesystem operation."
+                );
+            }
+
+            const implementedOperations = new Set(["cd", "ls", "mkdir"]);
+
+            if(!implementedOperations.has(body.op)) {
+                throw new FsError(
+                    "UNSUPPORTED",
+                    `Operation '${body.op}' is not implemented yet`
+                );
+            }
+            const root = await findOrCreateFsRoot(
+              userSupabase,
+              user,
+              profile
+            );
+
+            if (body.op === "cd") {
+                const targetPath =
+                    normalizeFsPath(body.path ?? "");
+
+                await resolveFsDirectory(
+                    userSupabase,
+                    user,
+                    profile,
+                    root,
+                    targetPath
+                );
+
+                return sendFsSuccess(
+                    res,
+                    {
+                        message: "Directory changed."
+                    },
+                    targetPath
+                );
+            }
+
+            const currentDirectory = await resolveFsDirectory(
+                userSupabase,
+                user,
+                profile,
+                root,
+                cwd
+            );
+
+            if (body.op === "ls") {
+                const { data, error } = await userSupabase
+                    .from("fs_entries")
+                    .select(
+                        "id, name, kind, size, created_at, updated_at"
+                    )
+                    .eq("owner_id", user.id)
+                    .eq("profile", profile)
+                    .eq("parent_id", currentDirectory.id)
+                    .order("kind", { ascending: true })
+                    .order("name", { ascending: true });
+
+                if (error) {
+                    throw error;
+                }
+
+                const entries = (data || []).map(entry => ({
+                    id: entry.id,
+                    name: entry.name,
+                    kind: entry.kind,
+                    size: entry.size,
+                    mtime: entry.updated_at,
+                    created_at: entry.created_at,
+                    updated_at: entry.updated_at
+                }));
+
+                return sendFsSuccess(
+                    res,
+                    {
+                        entries,
+                        message: `${entries.length} entries.`
+                    },
+                    cwd
+                );
+            }
+
+            if (body.op === "mkdir") {
+                const name = validateFsName(body.name);
+
+                const { data, error } = await userSupabase
+                    .from("fs_entries")
+                    .insert({
+                        owner_id: user.id,
+                        profile,
+                        parent_id: currentDirectory.id,
+                        name,
+                        kind: "dir",
+                        size: 0,
+                        storage_key:null
+                    })
+                    .select(
+                        "id, name, kind, size, created_at, updated_at"
+                    )
+                    .single();
+                if (error){
+                    if (error.code === "23505"){
+                        throw new FsError(
+                            "EXISTS",
+                            `an entry named '${name}' already exists.`
+                        );
+                    }
+
+                    throw error;
+                }
+
+                return sendFsSuccess(
+                    res,
+                    {
+                        message: "DIrectory created.",
+                        entry:{
+                            id: data.id,
+                            name: data.name,
+                            kind: data.kind,
+                            size: data.size,
+                            created_at: data.created_at,
+                            updated_at: data.updated_at
+                        }
+                    },
+                    cwd
+                );
+            }
+
+            throw new FsError(
+                "UNSUPPORTRED",
+                "FILESYSTEM IS NOT IMPLEMENTED."
+            );
+        }catch (error) {
+            return sendFsError(res, error, cwd);
+        }
+    }
+);
 
 async function buildFolderTree(profile, currentPath = "") {
 
