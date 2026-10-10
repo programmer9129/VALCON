@@ -1,0 +1,133 @@
+{
+  "version" : 1,
+
+  "request": {
+    "required": [
+      "token",
+      "cwd",
+      "op"
+    ],
+
+    "properties": {
+      "token": {
+        "type":"string"
+      },
+
+      "profile": {
+        "type": "string",
+        "description": "Selected profile name. The server must verify ownership using the authenticated user ID."
+      },
+
+      "cwd": {
+        "type": "string",
+        "description": "Profile-relative current working directory; epmty means the profile root"
+      },
+
+      "op": {
+        "type": "string",
+        "enum": [
+          "cd",
+          "mkdir",
+          "mkfile",
+          "ls",
+          "read",
+          "write",
+          "append",
+          "delete_file",
+          "deldir",
+          "rename",
+          "move",
+          "copy",
+          "tree",
+          "find"
+        ]
+      },
+
+      "path": {
+        "type": "string"
+      },
+
+      "name": {
+        "type": "string"
+      },
+
+      "content": {
+        "type": "string"
+      },
+
+      "destination": {
+        "type": "string"
+      },
+      "pattern": {
+        "type": "string"
+      },
+
+      "confirm": {
+        "type": "boolean"
+      }
+    }
+  },
+  "success_response": {
+    "required": [
+      "ok",
+      "result",
+      "cwd"
+    ],
+
+    "properties": {
+      "ok": {
+        "const": true
+      },
+
+      "result": {
+        "type": "object"
+      },
+
+      "cwd": {
+        "type": "string"
+      }
+    }
+  },
+
+  "error_response": {
+    "required": [
+      "ok",
+      "code",
+      "message",
+      "cwd"
+    ],
+
+    "properties": {
+      "ok": {
+        "const": false
+      },
+
+      "code": {
+        "type": "string"
+      },
+
+      "message": {
+        "type": "string"
+      },
+
+      "cwd": {
+        "type": "string"
+      }
+    }
+  },
+
+  "errors": {
+    "INVALID_PATH": 400,
+    "INVALID_NAME": 400,
+    "NOT_FOUND": 404,
+    "EXISTS": 409,
+    "NOT_EMPTY": 409,
+    "FORBIDDEN": 403,
+    "TOO_LARGE": 413,
+    "QUOTA_EXCEEDED": 413,
+    "UNSUPPORTED": 422,
+    "UNAUTHORIZED": 401,
+    "CONFIRM_REQUIRED": 409,
+    "INTERNAL": 500
+  }
+}

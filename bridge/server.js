@@ -4,8 +4,15 @@ const express = require("express");
 const cors = require("cors");
 const {createClient} = require("@supabase/supabase-js");
 const BUCKET_NAME = "valcon-files";
+const FS_CONTRACT = require("./fs-contract.json");
 
-const ID_BACKEND_ADRESS = "https://valcon-r5ti.onrender.com/server_bridge";
+const FS_OPERATIONS = new Set(FS_CONTRACT.request.properties.op.enum);
+const FS_ERROR_STATUS = FS_CONTRACT.error;
+
+const FS_CONTRACT = require("./fs-contract.json");
+
+
+const CPP_BACKEND_URL = (process.env.CPP_BACKEND_URL || "").replace(/\/+$/, "");
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -144,7 +151,16 @@ app.get("/server_bridge", (req, res) => {
 
 app.get("/server_bridge/cpp", async (req, res) => {
     try {
-        const response = await fetch(ID_BACKEND_ADRESS);
+        if (!CPP_BACKEND_URL) {
+            return res.status(503).json({
+                success: false,
+                error: "CPP_BACKEND_URL is not configured"
+            });
+        }
+
+        const response = await fetch(
+            `${CPP_BACKEND_URL}/server_bridge`
+        );
 
         const data = await response.text();
 
@@ -185,7 +201,14 @@ app.get("/server_bridge/supabase", async (req, res) =>{
     }
     catch(error)
     {
-        console.log(error);
+        console.error("SUPABASE ERROR: ", error);
+
+        return res.status(502).json({
+            sccess: false,
+            service: "supabase",
+            status: "error",
+            error: "Supabase health check failed"
+        });
     }
 });
 app.post("/server_bridge/files/create", async(req,res) => {
@@ -259,7 +282,7 @@ app.post("/server_bridge/files/write", async(req,res) => {
         console.error(error);
         res.status(400).json({
             success: false,
-            error:error.massage//@GuruOrGoru when need to check logs
+            error: error.message//@GuruOrGoru when need to check logs
         });
     }
 });
@@ -641,7 +664,14 @@ app.get("/json", (req, res) => {
 
 app.post("/json", async (req, res) => {
    try {
-       const { profile, path, command, terminal } = req.body;
+       const {
+           token,
+           profile,
+           cwd,
+           path,
+           command,
+           terminal
+       } = req.body || {};
 
        if (!profile){
            return res.status(400).json({
@@ -656,18 +686,32 @@ app.post("/json", async (req, res) => {
                error: "command is required"
            });
        }
+       if (typeof token !== "string" || token.length === 0){
+           return res.status(401).json({
+               success: false,
+               error: "auth required"
+           });
+       }
 
-       const response = await fetch("https://valcon-r5ti.onrender.com/json",
+       if (!CPP_BACKEND_URL){
+           return res.status(503).json({
+               success: false,
+               error: "CPP_BACKEND_URL IS NOT CONFIG"
+           });
+       }
+
+       const response = await fetch(`${CPP_BACKEND_URL}/json`,
            {
                method: "POST",
                headers: {
-                   "content-Type": "application/json"
+                   "Content-Type": "application/json"
                },
                body: JSON.stringify({
+                   token,
                    profile,
-                   path: path || "",
+                   cwd: typeof cwd === "string" ? cwd : (typeof path === "string" ? path : ""),
                    command,
-                   terminal: terminal || 0
+                   terminal: terminal ?? 0
                })
            });
        const text = await response.text();
