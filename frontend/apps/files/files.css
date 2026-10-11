@@ -1,0 +1,138 @@
+.files-app {
+  --files-bg: #17191f;
+  --files-panel: #1d2028;
+  --files-hover: #292e39;
+  --files-text: #e5efeb;
+  --files-muted: #969eae;
+  --files-accent: #8ab4f8;
+  --files-danger: #f28b82;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--files-bg);
+  color: var(--files-text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.files-app *,
+.files-app *::before,
+.files-app *::after {
+  box-sizing: border-box;
+}
+
+.files-app button,
+.files-app input {
+  font: inherit;
+}
+
+.files-app button {
+  color: inherit;
+  cursor: pointer;
+}
+
+.files-app button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.files-toolbar {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--files-border);
+  background: var(--files-panel);
+}
+
+.files-navigation {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.files-icon-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 18px !important;
+}
+
+.files-icon-btn:hover:not(:disabled) {
+  background: var(--files-hover);
+  border-color: var(--files-border);
+}
+
+.files-address {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--files-border);
+  border-radius: 7px;
+  background: var(--files-bg);
+}
+
+.files-address-icon {
+  color: var(--files-accent);
+  font-weight: 700;
+}
+
+.files-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: auto;
+  white-space: nowrap;
+}
+
+.files-crumb {
+  padding: 4px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--files-text);
+}
+
+.files-crumb:hover {
+  background: var(--files-hover);
+}
+
+.files-crumb-separator {
+  color: var(--files-muted);
+}
+
+.files-actions {
+  display: flex;
+  flex-wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--files-border);
+}
+
+.files-actions > button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--files-border);
+  border-radius: 6px;
+  background: var(--files-panel);
+}
+
+.files-actions > button:hover:not(:disabled) {
+  background: var(--files-hover);
+}
+
+.files-actions > button[data-action="new-file"];
+.files-actions > button[data-action="new-folder"];

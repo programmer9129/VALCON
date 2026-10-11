@@ -1,0 +1,91 @@
+<div class="files-app">
+  <header class="files-toolbar">
+    <div class="files-navigation">
+      <button
+        class="files-icon-btn"
+        data-action="back"
+        title="Back"
+        aria-label="Back"
+      >
+        <-
+      </button>
+      <button
+        class="files-icon-btn"
+        data-action="up"
+        title="Parent folder"
+        aria-label="Parent folder"
+      >
+        ..
+      </button>
+      <button
+        class="files-icon-btn"
+        data-action="refresh"
+        title="Refresh"
+        aria-label="Refresh"
+      >
+        ↻
+      </button>
+    </div>
+
+    <div class="files-address">
+      <span class="files-address-icon"></span>
+      <div class="files-breadcrumbs" aria-label="Current path"></div>
+    </div>
+  </header>
+
+  <div class="files-actions">
+    <button data-action="new-file">+ File</button>
+    <button data-action="new-folder">+ Folder</button>
+    <button data-action="rename" disabled>Rename</button>
+    <button data-action="delete" disabled>+ File</button>
+
+    <div class="files-search-wrap">
+      <input
+        class="files-search"
+        type="search"
+        placeholder="Search tis folder...."
+        aria-label="Search current folder"
+      />
+    </div>
+  </div>
+
+  <main class="files-main">
+    <aside class="files-sidebar">
+      <div class="files-sidebar-heading">LOCATIONS</div>
+
+      <button class="files-location active" data-location="">
+        <span class="files-location-icon">⌂</span>
+        Home
+      </button>
+    </aside>
+
+    <section class="files-content">
+      <div class="files-list-header">
+        <span>Name</span>
+        <span>Type</span>
+        <span>Size</span>
+        <span>Modified</span>
+      </div>
+
+      <div
+        class="files-list"
+        role="listbox"
+        aria-label="Files Und Folders"
+      ></div>
+
+      <div class="files-empty" hidden>
+        <div class="files-empty-icon">∅</div>
+        <strong>Folder is empty..</strong>
+        <p>Create a file/folder to begin</p>
+      </div>
+
+      <div class="files-error" hidden role="alety"></div>
+      <div class="files-loading" hidden>Loading files...</div>
+    </section>
+  </main>
+
+  <footer class="files-statusbar">
+    <span class="files-item-count">Ready</span>
+    <span class="files-current-path">/</span>
+  </footer>
+</div>
