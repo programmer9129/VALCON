@@ -21,6 +21,8 @@ import { bootAuth } from "./auth.js";
 
 import { appmanager } from "./app-manager.js";
 
+import { mountStatusBar } from "./statusbar.js";
+
 import { get, on } from "./core/settings-store.js";
 
 import { initTheme } from "./core/theme.js";
@@ -118,8 +120,7 @@ function setupDockAutoHide(dock) {
       }
 
       setRevealed(
-        nearEdge(event.clientX, event.clientY) ||
-          dock.contains(event.target),
+        nearEdge(event.clientX, event.clientY) || dock.contains(event.target),
       );
     },
     { passive: true },
@@ -226,6 +227,8 @@ async function boot() {
     single: true,
     start: startFiles,
   });
+
+  mountStatusBar(appmanager);
 
   const launch = (id) => {
     const win = document.getElementById(`${id}App`);

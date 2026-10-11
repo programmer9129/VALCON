@@ -1,0 +1,169 @@
+#valcon-statusbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 1000000;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  color: #e8eaf0;
+  background: rgba(20, 22, 29, 0.94);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+#valcon-statusbar *,
+#valcon-statusbar-menu * {
+  box-sizing: border-box;
+}
+
+#valcon-statusbar button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+#valcon-statusbar .status-left,
+#valcon-statusbar .status-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#valcon-statusbar .status-brand {
+  border: 0;
+  background: transparent;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  padding: 7px 4px;
+}
+
+#valcon-statusbar .status-brand:hover,
+#valcon-statusbar .status-action:hover {
+  color: #a9caff;
+}
+
+#valcon-statusbar .status-workspace {
+  color: #9ba3b4;
+}
+
+#valcon-statusbar .status-clock {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+
+#valcon-statusbar .status-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  white-space: nowrap;
+}
+
+#valcon-statusbar .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8ab4f8;
+}
+
+#valcon-statusbar-menu {
+  position: fixed;
+  z-index: 1000001;
+  top: 42px;
+  left: 10px;
+  width: min(300px, calc(100vw - 20px));
+  max-height: min(70vh, 540px);
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #383d49;
+  border-radius: 10px;
+  background: rgba(25, 28, 36, 0.98);
+  color: #e8eaf0;
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.35);
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+  backdrop-filter: blur(18px);
+}
+
+#valcon-statusbar-menu[hidden] {
+  display: none;
+}
+
+#valcon-statusbar-menu .status-menu-heading {
+  padding: 9px 9px 6px;
+  color: #9ba3b4;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+#valcon-statusbar-menu .status-menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+#valcon-statusbar-menu .status-menu-button:hover {
+  background: #303541;
+}
+
+#valcon-statusbar-menu .status-menu-meta {
+  color: #969eae;
+  font-size: 11px;
+}
+
+#valcon-statusbar-menu .status-menu-empty {
+  padding: 8px 9px 12px;
+  color: #969eae;
+}
+
+#valcon-statusbar-menu .status-menu-divider {
+  height: 1px;
+  margin: 7px 0;
+  background: #383d49;
+}
+
+@media (max-width: 520px) {
+  #valcon-statusbar {
+    padding: 0 8px;
+    gap: 5px;
+  }
+
+  #valcon-statusbar .status-workspace,
+  #valcon-statusbar .status-open-label {
+    display: none;
+  }
+
+  #valcon-statusbar .status-left,
+  #valcon-statusbar .status-right {
+    gap: 4px;
+  }
+
+  #valcon-statusbar .status-clock {
+    font-size: 11px;
+  }
+}
