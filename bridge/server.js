@@ -2032,7 +2032,19 @@ app.post("/auth/register", async (req, res) => {
 
         const email = `${username}@accounts.valcon.invalid`;
 
-        const { data, error } = await supabase.auth.admin.createUser({
+        const adminSupabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SECRET_KEY,
+            {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                }
+            }
+        );
+
+        const { data, error } = await adminSupabase.auth.admin.createUser({
             email,
             password,
             email_confirm: true,
