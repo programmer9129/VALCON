@@ -1,37 +1,40 @@
+// frontend/api.js
+
 import { get } from "./core/settings-store.js";
 import { getAuth } from "./auth.js";
 
 let token = null;
 
 function trimTrailingSlash(value) {
-  return value.replace(/\/+$/, "");
+  return String(value || "").replace(/\/+$/, "");
 }
 
-function configured(key, envKey) {
+function configured(key, envValue) {
   const stored = String(get(key) || "").trim();
 
   if (stored) {
     return trimTrailingSlash(stored);
   }
 
-  return trimTrailingSlash(String(import.meta.env[envKey] || "").trim());
+  return trimTrailingSlash(String(envValue || "").trim());
 }
 
 export function apiUrl() {
-  return configured("network.apiUrl", "VITE_API_URL");
+  return configured("network.apiUrl", import.meta.env.VITE_API_URL);
 }
 
 export function bridgeUrl() {
-  return configured("network.bridgeUrl", "VITE_BRIDGE_URL");
+  return configured("network.bridgeUrl", import.meta.env.VITE_BRIDGE_URL);
 }
 
 export async function loadToken() {
-  const auth = getAuth();
-
-  token = auth ? auth.token : null;
+  token = getAuth()?.token || null;
+  return token;
 }
 
 function headers() {
+  token = getAuth()?.token || null;
+
   const output = {};
 
   if (token) {
@@ -42,11 +45,17 @@ function headers() {
 }
 
 function getUploadUrl() {
-  return configured("network.musicUploadUrl", "VITE_MUSIC_UPLOAD_URL");
+  return configured(
+      "network.musicUploadUrl",
+      import.meta.env.VITE_MUSIC_UPLOAD_URL,
+  );
 }
 
 function getPlayBase() {
-  return configured("network.musicPlayUrl", "VITE_MUSIC_PLAY_URL");
+  return configured(
+      "network.musicPlayUrl",
+      import.meta.env.VITE_MUSIC_PLAY_URL,
+  );
 }
 
 function absolute(url) {
@@ -56,7 +65,9 @@ function absolute(url) {
 
   const base = getPlayBase();
 
-  return base ? `${base.replace(/\/$/, "")}/${url.replace(/^\//, "")}` : url;
+  return base
+      ? `${base}/${String(url).replace(/^\//, "")}`
+      : url;
 }
 
 function extractUrl(xhr) {
@@ -76,14 +87,16 @@ function extractUrl(xhr) {
     const data = JSON.parse(text);
 
     const candidate =
-      data.url ||
-      data.play_url ||
-      data.playUrl ||
-      data.download_url ||
-      data.signedUrl ||
-      data.signed_url ||
-      (data.data &&
-        (data.data.url || data.data.signedUrl || data.data.signed_url));
+        data.url ||
+        data.play_url ||
+        data.playUrl ||
+        data.download_url ||
+        data.signedUrl ||
+        data.signed_url ||
+        (data.data &&
+            (data.data.url ||
+                data.data.signedUrl ||
+                data.data.signed_url));
 
     return candidate ? absolute(candidate) : null;
   } catch {
@@ -92,7 +105,7 @@ function extractUrl(xhr) {
 }
 
 export function uploadConfigured() {
-  return Boolean(configured("network.musicUploadUrl", "VITE_MUSIC_UPLOAD_URL"));
+  return Boolean(getUploadUrl());
 }
 
 export function upload(file, filename, onProgress) {
@@ -107,10 +120,7 @@ export function upload(file, filename, onProgress) {
   }
 
   return new Promise((resolve) => {
-    const params = new URLSearchParams({
-      filename,
-    });
-
+    const params = new URLSearchParams({ filename });
     let endpoint = uploadUrl;
 
     if (!/[?&]filename=/.test(endpoint)) {
@@ -120,21 +130,20 @@ export function upload(file, filename, onProgress) {
     const xhr = new XMLHttpRequest();
 
     xhr.open("POST", endpoint);
-
     xhr.setRequestHeader(
-      "Content-Type",
-      file.type || "application/octet-stream",
+        "Content-Type",
+        file.type || "application/octet-stream",
     );
 
-    const authHeaders = headers();
-
-    for (const key of Object.keys(authHeaders)) {
-      xhr.setRequestHeader(key, authHeaders[key]);
+    for (const [key, value] of Object.entries(headers())) {
+      xhr.setRequestHeader(key, value);
     }
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
+        onProgress(
+            Math.round((event.loaded / event.total) * 100),
+        );
       }
     };
 
@@ -175,5 +184,5 @@ export function remoteUrlFor(filename) {
     return null;
   }
 
-  return `${base.replace(/\/$/, "")}/${encodeURIComponent(filename)}`;
+  return `${base}/${encodeURIComponent(filename)}`;
 }
