@@ -651,18 +651,16 @@ async function fsCreateFile(
         throw uploadError;
     }
 
-    const { data: updatedEntry, error: metadataError } =
-        await userSupabase
-            .from("fs_entries")
-            .update({
-                size: contentBuffer.length,
-                updated_at: new Date().toISOString()
-            })
-            .eq("owner_id", user.id)
-            .eq("profile", profile)
-            .eq("id", entry.id)
-            .select("*")
-            .single();
+    const { data: updatedEntry, error: metadataError } = await userSupabase
+        .from("fs_entries")
+        .update({
+            size: contentBuffer.length
+        })
+        .eq("owner_id", user.id)
+        .eq("profile", profile)
+        .eq("id", entry.id)
+        .select("*")
+        .single();
 
     if (metadataError) {
         await userSupabase.storage
