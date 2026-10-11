@@ -292,7 +292,7 @@ function fsCleanName(value) {
         name === ".." ||
         /[\/\\\u0000-\u001f\u007f]/u.test(name)
     ){
-        fsRaise("INVALID_PATH", "invalid file or directory name.");
+        fsRaise("INVALID_NAME", "invalid file or directory name.");
     }
     return name;
 }
@@ -433,6 +433,7 @@ async function fsInsertEntry(
             parent_id: parentId,
             name,
             kind,
+            size: 0,
             storage_key: storageKey
         })
         .select("*")
@@ -500,7 +501,33 @@ async function fsCreateFile(
          throw error;
     }
 
-    return entry;
+    const { data: updatedEntry, error: metadataError } = await userSupabase
+        .form("fs_entries")
+        .update({
+            size: contentBuffer.length
+        })
+        .eq("owner_id", user.id)
+        .eq("profile", profile)
+        .eq("id", entry["id"])
+        .select("*")
+        .single();
+
+
+    if (metadataError) {
+        await userSupabase.storage
+            .from(BUCKET_NAME)
+            .remove([storageKey]);
+
+        await userSupabase
+            .from("fs_entries")
+            .delete()
+            .eq("owner_id", user.id)
+            .eq("profile", profile)
+            .eq("id", entry.["id"]);
+
+        throw metadataError;
+    }
+    return updatedEntry;
 }
 
 async function fsUploadBuffer(userSupabase, entry, buffer) {
@@ -518,6 +545,15 @@ async function fsUploadBuffer(userSupabase, entry, buffer) {
     if (error){
         throw error;
     }
+
+    const { error: metadataError } = await userSupabase
+        .from("fs_entries")
+        .update({
+            size: buffer.length
+        })
+        .eq("owner_id", entry.owner_id)
+        .eq("profile", entry.profile)
+        .eq("id", entry.id);
 }
 
 async function fsCollectSubtree(
@@ -918,7 +954,26 @@ app.post("/server_bridge/fs", requireValconBridgeKey,
                 );
             }
 
-            const implementedOperations = new Set(["cd", "ls", "mkdir"]);
+            const implementedOperations = new Set([
+                "cd",
+                "ls",
+                "mkdir",
+                "mkfile",
+                "read",
+                "write",
+                "append",
+                "delete_file",
+                "deldir",
+                "rename",
+                "move",
+                "copy",
+                "stat",
+                "tree",
+                "du",
+                "find",
+                "grep"
+            ]);
+
 
             if(!implementedOperations.has(body.op)) {
                 throw new FsError(
@@ -1212,6 +1267,7 @@ app.get("/server_bridge/cpp", async (req, res) => {
         });
     }
 });
+
 app.get("/server_bridge/supabase", async (req, res) =>{
     try {
         const {data , error} = await supabase
@@ -1242,6 +1298,7 @@ app.get("/server_bridge/supabase", async (req, res) =>{
         });
     }
 });
+
 app.post("/server_bridge/files/create", async(req,res) => {
     try {
         const {filename} = req.body;
@@ -1345,6 +1402,7 @@ app.get("/server_bridge/files/read/:filename", async(req,res) => {
         });
     }
 });
+
 app.delete("/server_bridge/files/delete/:filename", async (req,res) => {
     try{
         const filename = req.params.filename;
@@ -1368,6 +1426,7 @@ app.delete("/server_bridge/files/delete/:filename", async (req,res) => {
         });
     }
 });
+
 app.get("/server_bridge/files/list", async (req, res) => {
     try {
         const { data, error } = await supabase
