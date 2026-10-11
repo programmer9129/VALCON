@@ -1,6 +1,15 @@
+// frontend/apps/editor/editor.js
+
 import "./editor.css";
 
-import { fs, FsError, basename, normalizePath } from "../../fs/client.js";
+import {
+  fs,
+  FsError,
+  basename,
+  dirname,
+  normalizePath,
+} from "../../fs/client.js";
+
 import { bus } from "../../core/bus.js";
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -87,6 +96,7 @@ export function startEditor(root, win, appmanager) {
     add.title = "Open file";
     add.setAttribute("aria-label", "Open file");
     add.addEventListener("click", () => showDialog("open"));
+
     tabsEl.appendChild(add);
   }
 
@@ -108,7 +118,11 @@ export function startEditor(root, win, appmanager) {
 
   function commitActiveTab() {
     const tab = activeTab();
-    if (tab) tab.content = text.value;
+
+    if (tab) {
+      tab.content = text.value;
+      tab.dirty = tab.content !== tab.savedContent;
+    }
   }
 
   function updateTitle() {
@@ -116,7 +130,9 @@ export function startEditor(root, win, appmanager) {
     const dirty = tabs.some((item) => item.dirty);
 
     win.setTitle(
-      `${tab ? `${tab.dirty ? "● " : ""}${tab.name}` : "Editor"}${dirty && !tab?.dirty ? " •" : ""} — VALCON`,
+        `${tab ? `${tab.dirty ? "● " : ""}${tab.name}` : "Editor"}${
+            dirty && !tab?.dirty ? " •" : ""
+        } — VALCON`,
     );
   }
 
@@ -157,7 +173,9 @@ export function startEditor(root, win, appmanager) {
     let count = 1;
 
     for (let i = 0; i < value.length; i++) {
-      if (value.charCodeAt(i) === 10) count++;
+      if (value.charCodeAt(i) === 10) {
+        count++;
+      }
     }
 
     return count;
@@ -168,9 +186,10 @@ export function startEditor(root, win, appmanager) {
 
     if (lines !== lineCount) {
       lineCount = lines;
+
       gutter.textContent = Array.from(
-        { length: lines },
-        (_, index) => index + 1,
+          { length: lines },
+          (_, index) => index + 1,
       ).join("\n");
     }
 
@@ -192,11 +211,13 @@ export function startEditor(root, win, appmanager) {
     const col = before.length - lastNewline;
 
     pathEl.textContent = tab.path;
-    metaEl.textContent = `Ln ${row}, Col ${col} · ${(text.value.length / 1024).toFixed(1)} KB`;
+    metaEl.textContent =
+        `Ln ${row}, Col ${col} · ${(text.value.length / 1024).toFixed(1)} KB`;
   }
 
   function markDirty() {
     const tab = activeTab();
+
     if (!tab) return;
 
     tab.content = text.value;
@@ -209,15 +230,19 @@ export function startEditor(root, win, appmanager) {
 
   function showDialog(mode) {
     dialogMode = mode;
-    dialogTitle.textContent = mode === "open" ? "Open file" : "Save file as";
+
+    dialogTitle.textContent =
+        mode === "open" ? "Open file" : "Save file as";
 
     dialog.querySelector('[type="submit"]').textContent =
-      mode === "open" ? "Open" : "Save";
+        mode === "open" ? "Open" : "Save";
 
-    dialogPath.value = mode === "saveas" ? (activeTab()?.path ?? "") : "";
+    dialogPath.value =
+        mode === "saveas" ? activeTab()?.path ?? "" : "";
 
     dialogError.textContent = "";
     overlay.hidden = false;
+
     dialogPath.focus();
   }
 
@@ -250,6 +275,7 @@ export function startEditor(root, win, appmanager) {
     }
 
     status("Opening…");
+
     const requestId = ++operationId;
 
     const response = await fs("read", { path });
@@ -259,19 +285,21 @@ export function startEditor(root, win, appmanager) {
 
     if (typeof result.content !== "string") {
       throw new FsError(
-        "BAD_RESPONSE",
-        "The server did not return text content.",
-        response.cwd,
+          "BAD_RESPONSE",
+          "The server did not return text content.",
+          response.cwd,
       );
     }
 
-    const byteLength = new TextEncoder().encode(result.content).byteLength;
+    const byteLength = new TextEncoder()
+        .encode(result.content)
+        .byteLength;
 
     if (byteLength > MAX_BYTES) {
       throw new FsError(
-        "TOO_LARGE",
-        "This editor limits files to 2 MB. Use a larger-file editor for this file.",
-        response.cwd,
+          "TOO_LARGE",
+          "This editor limits files to 2 MB. Use a larger-file editor for this file.",
+          response.cwd,
       );
     }
 
@@ -288,25 +316,31 @@ export function startEditor(root, win, appmanager) {
 
     tabs.push(tab);
     activateTab(tab.id);
+
     status(tab.warning ? "Large text file" : "File opened");
   }
 
   function confirmDiscard(message, onConfirm) {
-    if (window.confirm(message)) onConfirm();
+    if (window.confirm(message)) {
+      onConfirm();
+    }
   }
 
   function closeTab(id) {
     const index = tabs.findIndex((tab) => tab.id === id);
+
     if (index === -1) return;
 
     const tab = tabs[index];
 
     const remove = () => {
       const wasActive = activeId === id;
+
       tabs.splice(index, 1);
 
       if (wasActive) {
         activeId = null;
+
         const next = tabs[Math.min(index, tabs.length - 1)];
 
         if (next) {
@@ -314,6 +348,7 @@ export function startEditor(root, win, appmanager) {
         } else {
           text.value = "";
           text.disabled = true;
+
           syncGutter();
           syncStatus();
         }
@@ -324,13 +359,20 @@ export function startEditor(root, win, appmanager) {
     };
 
     if (tab.dirty) {
-      confirmDiscard(`${tab.name} has unsaved changes. Discard them?`, remove);
+      confirmDiscard(
+          `${tab.name} has unsaved changes. Discard them?`,
+          remove,
+      );
     } else {
       remove();
     }
   }
 
-  async function save(tab = activeTab(), asPath = null, overwrite = false) {
+  async function save(
+      tab = activeTab(),
+      asPath = null,
+      overwrite = false,
+  ) {
     if (!tab) {
       status("No file open");
       return;
@@ -344,13 +386,16 @@ export function startEditor(root, win, appmanager) {
     }
 
     const content = tab.content;
+
     status("Saving…");
 
     try {
       const { result } = await fs("write", {
-        path: target,
+        cwd: dirname(target),
+        name: basename(target),
         content,
-        etag: overwrite ? null : tab.etag,
+        etag: overwrite || target !== tab.path ? null : tab.etag,
+        createOnly: target !== tab.path && !overwrite,
       });
 
       tab.path = target;
@@ -362,15 +407,21 @@ export function startEditor(root, win, appmanager) {
       renderTabs();
       updateDirtyUI();
       syncStatus();
-      status(tab.dirty ? "Saved snapshot; newer edits remain" : "Saved");
+
+      status(
+          tab.dirty
+              ? "Saved snapshot; newer edits remain"
+              : "Saved",
+      );
     } catch (error) {
       if (error instanceof FsError && error.code === "CONFLICT") {
         confirmDiscard(
-          `${target} changed on the server. Overwrite the server version?`,
-          () => {
-            save(tab, target, true).catch(reportError);
-          },
+            `${target} changed on the server. Overwrite the server version?`,
+            () => {
+              save(tab, target, true).catch(reportError);
+            },
         );
+
         return;
       }
 
@@ -387,16 +438,16 @@ export function startEditor(root, win, appmanager) {
   }
 
   root
-    .querySelector('[data-action="open"]')
-    .addEventListener("click", () => showDialog("open"));
+      .querySelector('[data-action="open"]')
+      .addEventListener("click", () => showDialog("open"));
 
   root
-    .querySelector('[data-action="save"]')
-    .addEventListener("click", () => save().catch(reportError));
+      .querySelector('[data-action="save"]')
+      .addEventListener("click", () => save().catch(reportError));
 
   root
-    .querySelector('[data-action="save-as"]')
-    .addEventListener("click", () => showDialog("saveas"));
+      .querySelector('[data-action="save-as"]')
+      .addEventListener("click", () => showDialog("saveas"));
 
   dialog.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -423,10 +474,14 @@ export function startEditor(root, win, appmanager) {
   });
 
   overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) hideDialog();
+    if (event.target === overlay) {
+      hideDialog();
+    }
   });
 
-  overlay.querySelector("[data-dismiss]").addEventListener("click", hideDialog);
+  overlay
+      .querySelector("[data-dismiss]")
+      .addEventListener("click", hideDialog);
 
   text.addEventListener("input", markDirty);
   text.addEventListener("scroll", syncGutter);
@@ -464,6 +519,7 @@ export function startEditor(root, win, appmanager) {
 
   wrapBtn.addEventListener("click", () => {
     wrap = !wrap;
+
     text.classList.toggle("wrap", wrap);
     wrapBtn.classList.toggle("active", wrap);
     wrapBtn.setAttribute("aria-pressed", String(wrap));
@@ -481,6 +537,7 @@ export function startEditor(root, win, appmanager) {
 
   function hasDirtyTabs() {
     commitActiveTab();
+
     return tabs.some((tab) => tab.dirty);
   }
 
@@ -494,8 +551,8 @@ export function startEditor(root, win, appmanager) {
 
   function confirmClose() {
     return (
-      !hasDirtyTabs() ||
-      window.confirm("The editor has unsaved changes. Close it anyway?")
+        !hasDirtyTabs() ||
+        window.confirm("The editor has unsaved changes. Close it anyway?")
     );
   }
 
@@ -517,6 +574,7 @@ export function startEditor(root, win, appmanager) {
   };
 
   text.disabled = true;
+
   renderTabs();
   syncGutter();
   syncStatus();
