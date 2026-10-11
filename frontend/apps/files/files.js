@@ -3,8 +3,8 @@ import { bus } from "../../core/bus.js";
 
 export function startFiles(content, win, manager) {
   const root = content.matches(".files-app")
-    ? content
-    : content.querySelector(".files-app");
+      ? content
+      : content.querySelector(".files-app");
 
   if (!root) {
     throw new Error("Files app markup was not mounted correctly.");
@@ -44,16 +44,16 @@ export function startFiles(content, win, manager) {
 
   function normalizePath(path) {
     return String(path || "")
-      .replaceAll("\\", "/")
-      .split("/")
-      .filter((part) => part && part !== ".")
-      .join("/");
+        .replaceAll("\\", "/")
+        .split("/")
+        .filter((part) => part && part !== ".")
+        .join("/");
   }
 
   function joinPath(parent, child) {
     return [normalizePath(parent), normalizePath(child)]
-      .filter(Boolean)
-      .join("/");
+        .filter(Boolean)
+        .join("/");
   }
 
   function parentPath(path) {
@@ -82,14 +82,14 @@ export function startFiles(content, win, manager) {
     }
 
     if (
-      value === "." ||
-      value === ".." ||
-      value.includes("/") ||
-      value.includes("\\") ||
-      /[\u0000-\u001f]/.test(value)
+        value === "." ||
+        value === ".." ||
+        value.includes("/") ||
+        value.includes("\\") ||
+        /[\u0000-\u001f]/.test(value)
     ) {
       throw new Error(
-        "Use a single file or folder name. Slashes and special path names are not allowed.",
+          "Use a single file or folder name. Slashes and special path names are not allowed.",
       );
     }
 
@@ -104,7 +104,9 @@ export function startFiles(content, win, manager) {
     const size = Number(bytes);
 
     if (size < 1024) return `${size} B`;
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(1)} KB`;
+    }
 
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
@@ -234,18 +236,18 @@ export function startFiles(content, win, manager) {
     const query = search.value.trim().toLocaleLowerCase();
 
     return entries
-      .filter((entry) => entry.name.toLocaleLowerCase().includes(query))
-      .sort((a, b) => {
-        const aDir = isDirectory(a);
-        const bDir = isDirectory(b);
+        .filter((entry) => entry.name.toLocaleLowerCase().includes(query))
+        .sort((a, b) => {
+          const aDir = isDirectory(a);
+          const bDir = isDirectory(b);
 
-        if (aDir !== bDir) return aDir ? -1 : 1;
+          if (aDir !== bDir) return aDir ? -1 : 1;
 
-        return a.name.localeCompare(b.name, undefined, {
-          numeric: true,
-          sensitivity: "base",
+          return a.name.localeCompare(b.name, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
         });
-      });
   }
 
   function renderEntries() {
@@ -299,7 +301,8 @@ export function startFiles(content, win, manager) {
     }
 
     empty.hidden = visible.length > 0;
-    itemCount.textContent = `${visible.length} item${visible.length === 1 ? "" : "s"}`;
+    itemCount.textContent =
+        `${visible.length} item${visible.length === 1 ? "" : "s"}`;
 
     updateControls();
   }
@@ -322,18 +325,18 @@ export function startFiles(content, win, manager) {
 
       if (!result || !Array.isArray(result.entries)) {
         throw new Error(
-          "The filesystem API returned an unexpected directory listing.",
+            "The filesystem API returned an unexpected directory listing.",
         );
       }
 
       currentPath = normalized;
       entries = result.entries.filter(
-        (entry) =>
-          entry &&
-          typeof entry.name === "string" &&
-          (entry.kind === "dir" ||
-            entry.kind === "directory" ||
-            entry.kind === "file"),
+          (entry) =>
+              entry &&
+              typeof entry.name === "string" &&
+              (entry.kind === "dir" ||
+                  entry.kind === "directory" ||
+                  entry.kind === "file"),
       );
 
       selectedName = null;
@@ -430,8 +433,7 @@ export function startFiles(content, win, manager) {
     try {
       await fs("mkfile", {
         cwd: currentPath,
-        path: name,
-        content: "",
+        name,
       });
 
       await refresh();
@@ -454,7 +456,7 @@ export function startFiles(content, win, manager) {
     try {
       await fs("mkdir", {
         cwd: currentPath,
-        path: name,
+        name,
       });
 
       await refresh();
@@ -481,8 +483,8 @@ export function startFiles(content, win, manager) {
     try {
       await fs("rename", {
         cwd: currentPath,
-        path: entry.name,
-        target: newName,
+        path: joinPath(currentPath, entry.name),
+        name: newName,
       });
 
       selectedName = null;
@@ -510,9 +512,10 @@ export function startFiles(content, win, manager) {
     if (!confirmed) return;
 
     try {
-      await fs("delete_file", {
+      await fs(isDirectory(entry) ? "deldir" : "delete_file", {
         cwd: currentPath,
-        path: entry.name,
+        path: joinPath(currentPath, entry.name),
+        confirm: isDirectory(entry),
       });
 
       selectedName = null;
@@ -528,11 +531,11 @@ export function startFiles(content, win, manager) {
     try {
       if (!manager?.apps?.has("editor")) {
         throw new Error(
-          "The Editor app is not registered. Register it before opening files.",
+            "The Editor app is not registered. Register it before opening files.",
         );
       }
-      await manager.open("editor");
 
+      await manager.open("editor");
       bus.emit("editor:open", { path });
     } catch (error) {
       showError(error.message || "Could not open this file.");
@@ -593,7 +596,9 @@ export function startFiles(content, win, manager) {
     }
   });
 
-  $('[data-dialog="cancel"]').addEventListener("click", () => settleDialog(null));
+  $('[data-dialog="cancel"]').addEventListener("click", () => {
+    settleDialog(null);
+  });
 
   root.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-action]");
@@ -646,6 +651,7 @@ export function startFiles(content, win, manager) {
       selectEntry(row.dataset.name);
     }
   });
+
   root.addEventListener("dblclick", async (event) => {
     const row = event.target.closest(".files-entry");
 
@@ -676,7 +682,8 @@ export function startFiles(content, win, manager) {
 
       const rows = [...list.querySelectorAll(".files-entry")];
       const index = rows.indexOf(row);
-      const target = rows[event.key === "ArrowDown" ? index + 1 : index - 1];
+      const target =
+          rows[event.key === "ArrowDown" ? index + 1 : index - 1];
 
       if (!target) return;
 
@@ -685,8 +692,8 @@ export function startFiles(content, win, manager) {
       selectEntry(name);
 
       list
-        .querySelector(`.files-entry[data-name="${CSS.escape(name)}"]`)
-        ?.focus();
+          .querySelector(`.files-entry[data-name="${CSS.escape(name)}"]`)
+          ?.focus();
     }
   });
 
