@@ -134,5 +134,49 @@
   background: var(--files-hover);
 }
 
-.files-actions > button[data-action="new-file"];
-.files-actions > button[data-action="new-folder"];
+.files-actions > button[data-action="new-file"],
+.files-actions > button[data-action="new-folder"] {
+  border-color: #43556e;
+  color: var(--files-accent);
+}
+
+.files-search-wrap {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.files-search {
+  width: min(100%, 240px);
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--files-border);
+  border-radius: 6px;
+  outline: none;
+  background: var(--files-bg);
+  color: var(--files-text);
+}
+
+.files-search:focus {
+  border-color: var(--files-accent);
+}
+
+.files-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.files-sidebar {
+  width: 155px;
+  flex-shrink: 0;
+  padding: 14px 9px;
+  border-right: 1px solid var(--files-border);
+  background: var(--files-panel);
+}
+
+.files-sidebar-heading {
+  padding: 4px 8px 10px;
+}
