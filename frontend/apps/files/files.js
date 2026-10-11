@@ -312,7 +312,7 @@ export function startFiles(content, win, manager) {
     loading.hidden = false;
 
     try {
-      const response = await fs("list", {
+      const response = await fs("ls", {
         cwd: normalized,
       });
 
@@ -428,7 +428,7 @@ export function startFiles(content, win, manager) {
     if (name === null) return;
 
     try {
-      await fs("write", {
+      await fs("mkfile", {
         cwd: currentPath,
         path: name,
         content: "",
@@ -479,7 +479,7 @@ export function startFiles(content, win, manager) {
     if (newName === null || newName === entry.name) return;
 
     try {
-      await fs("mv", {
+      await fs("rename", {
         cwd: currentPath,
         path: entry.name,
         target: newName,
@@ -510,7 +510,7 @@ export function startFiles(content, win, manager) {
     if (!confirmed) return;
 
     try {
-      await fs("rm", {
+      await fs("delete_file", {
         cwd: currentPath,
         path: entry.name,
       });
