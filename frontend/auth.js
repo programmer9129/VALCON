@@ -1,411 +1,594 @@
-const USERS_KEY = "valcon.users";
-const SESSION_KEY = "valcon.session";
+import { createClient } from "@supabase/supabase-js";
+import { get } from "./core/settings-store.js";
+
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || "").trim();
+
+const SUPABASE_KEY = String(
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    "",
+).trim();
+
+const AUTH_USED_KEY = "valcon.supabase.auth.used";
+const AVATAR_PREFIX = "valcon.avatar.";
+
+const supabase =
+    SUPABASE_URL && SUPABASE_KEY
+        ? createClient(SUPABASE_URL, SUPABASE_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+          },
+        })
+        : null;
 
 let currentUser = null;
 
-function readUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "{}");
-  } catch {
-    return {};
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    currentUser = toAuth(session);
+  });
+}
+
+function requireSupabase() {
+  if (!supabase) {
+    throw new Error(
+        "Supabase Auth is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
+    );
   }
+
+  return supabase;
 }
 
-function writeUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+function apiBase() {
+  const configured = String(
+      get("network.apiUrl") ||
+      import.meta.env.VITE_API_URL ||
+      "",
+  ).trim();
+
+  return (
+      configured.replace(/\/+$/, "") ||
+      (import.meta.env.DEV ? "http://localhost:3000" : "")
+  );
 }
 
-function toHex(buffer) {
-  return Array.from(new Uint8Array(buffer))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+function normalizedUsername(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
-async function sha256(text) {
-  const data = new TextEncoder().encode(text);
-
-  const digest = await crypto.subtle.digest("SHA-256", data);
-
-  return toHex(digest);
+function validUsername(value) {
+  return /^[a-z0-9_-]{2,64}$/.test(value);
 }
 
-function makeNacl() {
-  const bytes = new Uint8Array(16);
-
-  crypto.getRandomValues(bytes);
-
-  return toHex(bytes.buffer);
+function authEmailForUsername(username) {
+  return `${username}@accounts.valcon.invalid`;
 }
 
-function makeTokenPayload(username, expiresAt) {
-  return `${username}:${expiresAt}:${crypto.randomUUID()}`;
+function profileSlug(value) {
+  const slug = String(value || "user")
+      .trim()
+      .replace(/[^A-Za-z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 64);
+
+  return slug || "user";
 }
 
-function getUserRecord(username) {
-  const users = readUsers();
-
-  return users[username.toLowerCase()] || null;
-}
-
-function saveSession(session) {
-  currentUser = session;
-
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch {}
-}
-
-function restoreSession() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-
-    if (!raw) {
-      return null;
-    }
-
-    const session = JSON.parse(raw);
-
-    if (!session || !session.username || !session.token || !session.expiresAt) {
-      return null;
-    }
-
-    if (Date.now() >= Number(session.expiresAt)) {
-      localStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-
-    currentUser = session;
-
-    return session;
-  } catch {
+function toAuth(session) {
+  if (!session?.access_token || !session?.user) {
     return null;
   }
+
+  const user = session.user;
+  const email = String(user.email || "");
+  const localPart = email.split("@")[0] || "user";
+
+  const username = String(
+      user.user_metadata?.username || localPart,
+  ).slice(0, 64);
+
+  const profile = profileSlug(
+      user.user_metadata?.fs_profile || username,
+  );
+
+  return {
+    id: user.id,
+    username,
+    profile,
+    email,
+    token: session.access_token,
+    expiresAt: session.expires_at
+        ? session.expires_at * 1000
+        : Date.now() + Number(session.expires_in || 3600) * 1000,
+    user,
+  };
+}
+
+function validEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email);
 }
 
 export function hasAnyUser() {
-  return Object.keys(readUsers()).length > 0;
+  try {
+    return localStorage.getItem(AUTH_USED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export async function register(username, password) {
-  username = username.trim();
+  requireSupabase();
 
-  if (!username || !password) {
-    throw new Error("Username and password are required");
+  username = normalizedUsername(username);
+
+  if (!validUsername(username)) {
+    throw new Error(
+        "Use 2–64 letters, numbers, underscores or hyphens for your username.",
+    );
   }
 
-  if (username.length < 2) {
-    throw new Error("Username must be at least 2 characters");
+  if (typeof password !== "string" || password.length < 8) {
+    throw new Error(
+        "Use a password with at least 8 characters.",
+    );
   }
 
-  const users = readUsers();
-  const key = username.toLowerCase();
+  const base = apiBase();
 
-  if (users[key]) {
-    throw new Error("Your username is already taken");
+  if (!base) {
+    throw new Error(
+        "Set the Node API URL in Settings or VITE_API_URL.",
+    );
   }
 
-  const nacl = makeNacl();
-  const hash = await sha256(nacl + ":" + password);
-
-  users[key] = {
-    nacl,
-    hash,
-    createdAt: Date.now(),
-    profile: {
-      displayName: username,
-      avatar: "",
-      bio: "",
-      updatedAt: Date.now(),
+  const response = await fetch(`${base}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  };
+    body: JSON.stringify({
+      username,
+      password,
+    }),
+  });
 
-  writeUsers(users);
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {
+    // The response is handled below.
+  }
+
+  if (!response.ok || data.ok !== true) {
+    throw new Error(
+        data.message ||
+        data.error ||
+        `Registration failed (${response.status}).`,
+    );
+  }
+
+  try {
+    localStorage.setItem(AUTH_USED_KEY, "1");
+  } catch {
+    // Authentication can still work without this preference.
+  }
+
+  return login(username, password);
 }
 
 export async function login(username, password) {
-  username = username.trim();
+  const client = requireSupabase();
 
-  const users = readUsers();
-  const key = username.toLowerCase();
-  const user = users[key];
+  username = normalizedUsername(username);
 
-  if (!user) {
-    throw new Error("Wrong username or password");
+  if (!validUsername(username)) {
+    throw new Error("Enter a valid username.");
   }
 
-  const hash = await sha256(user.nacl + ":" + password);
+  const { data, error } = await client.auth.signInWithPassword({
+    email: authEmailForUsername(username),
+    password,
+  });
 
-  if (hash !== user.hash) {
-    throw new Error("Wrong username or password");
+  if (error || !data.session) {
+    throw new Error(error?.message || "Login failed.");
   }
 
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
+  try {
+    localStorage.setItem(AUTH_USED_KEY, "1");
+  } catch {
+    // Authentication can still work without this preference.
+  }
 
-  const token = await sha256(makeTokenPayload(username, expiresAt));
+  currentUser = toAuth(data.session);
 
-  const session = {
-    username: key,
-    token,
-    expiresAt,
-  };
-
-  saveSession(session);
-
-  return session;
+  return currentUser;
 }
 
 export function getAuth() {
-  if (!currentUser) {
-    restoreSession();
-  }
-
   return currentUser;
 }
 
 export function getProfile() {
   const auth = getAuth();
 
-  if (!auth) {
+  if (!auth?.user) {
     return null;
   }
 
-  const user = getUserRecord(auth.username);
+  const metadata = auth.user.user_metadata || {};
 
-  if (!user) {
-    return null;
+  let avatar = "";
+
+  try {
+    avatar =
+        localStorage.getItem(
+            `${AVATAR_PREFIX}${auth.user.id}`,
+        ) || "";
+  } catch {
+    // The avatar is optional.
   }
 
   return {
-    displayName: user.profile?.displayName || auth.username,
-
-    avatar: user.profile?.avatar || "",
-
-    bio: user.profile?.bio || "",
-
-    memberSince: user.createdAt || Date.now(),
-
-    updatedAt: user.profile?.updatedAt || user.createdAt || Date.now(),
+    displayName: String(
+        metadata.display_name || auth.username,
+    ),
+    avatar,
+    bio: String(metadata.bio || ""),
+    memberSince: auth.user.created_at || Date.now(),
+    updatedAt:
+        metadata.profile_updated_at ||
+        auth.user.updated_at ||
+        auth.user.created_at ||
+        Date.now(),
   };
 }
 
-export function updateProfile(patch) {
+export function updateProfile(patch = {}) {
   const auth = getAuth();
 
-  if (!auth) {
-    throw new Error("Not logged in");
+  if (!auth?.user) {
+    throw new Error("Not logged in.");
   }
 
-  const users = readUsers();
-  const key = auth.username;
-  const user = users[key];
+  if (
+      Object.prototype.hasOwnProperty.call(patch, "avatar")
+  ) {
+    try {
+      const key = `${AVATAR_PREFIX}${auth.user.id}`;
 
-  if (!user) {
-    throw new Error("User not found");
+      if (patch.avatar) {
+        localStorage.setItem(key, patch.avatar);
+      } else {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      throw new Error(
+          "Could not save the avatar in this browser.",
+      );
+    }
   }
 
-  user.profile = {
-    displayName: patch.displayName ?? user.profile?.displayName ?? key,
+  const metadata = {};
 
-    avatar: patch.avatar ?? user.profile?.avatar ?? "",
+  if (patch.displayName !== undefined) {
+    metadata.display_name = String(
+        patch.displayName,
+    ).slice(0, 100);
+  }
 
-    bio: patch.bio ?? user.profile?.bio ?? "",
+  if (patch.bio !== undefined) {
+    metadata.bio = String(patch.bio).slice(0, 2000);
+  }
 
-    updatedAt: Date.now(),
-  };
+  if (Object.keys(metadata).length) {
+    metadata.profile_updated_at = new Date().toISOString();
 
-  users[key] = user;
+    requireSupabase()
+        .auth.updateUser({
+      data: metadata,
+    })
+        .then(({ error }) => {
+          if (error) {
+            console.error(
+                "VALCON PROFILE UPDATE ERROR:",
+                error,
+            );
+            return;
+          }
 
-  writeUsers(users);
+          return supabase.auth.getSession().then(({ data }) => {
+            currentUser = toAuth(data?.session || null);
+
+            window.dispatchEvent(
+                new CustomEvent("profile-change", {
+                  detail: getProfile(),
+                }),
+            );
+          });
+        })
+        .catch((error) => {
+          console.error(
+              "VALCON PROFILE UPDATE ERROR:",
+              error,
+          );
+        });
+  }
+
+  const profile = getProfile();
 
   window.dispatchEvent(
-    new CustomEvent("profile-change", {
-      detail: getProfile(),
-    }),
+      new CustomEvent("profile-change", {
+        detail: profile,
+      }),
   );
 
-  return getProfile();
+  return profile;
 }
 
-export function logout() {
+export async function logout() {
+  if (supabase) {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw new Error(error.message || "Could not log out.");
+    }
+  }
+
   currentUser = null;
-
-  try {
-    localStorage.removeItem(SESSION_KEY);
-  } catch {}
-
   location.reload();
 }
 
 export async function changePassword(oldPassword, newPassword) {
+  const client = requireSupabase();
   const auth = getAuth();
 
-  if (!auth) {
-    throw new Error("Not logged in");
+  if (!auth?.email) {
+    throw new Error("Not logged in.");
   }
 
-  const users = readUsers();
-  const user = users[auth.username];
-
-  if (!user) {
-    throw new Error("User not found");
+  if (
+      typeof newPassword !== "string" ||
+      newPassword.length < 8
+  ) {
+    throw new Error(
+        "Use a password with at least 8 characters.",
+    );
   }
 
-  const oldHash = await sha256(user.nacl + ":" + oldPassword);
+  const { error: verifyError } =
+      await client.auth.signInWithPassword({
+        email: auth.email,
+        password: oldPassword,
+      });
 
-  if (oldHash !== user.hash) {
-    throw new Error("Current password is incorrect");
+  if (verifyError) {
+    throw new Error("Current password is incorrect.");
   }
 
-  user.hash = await sha256(user.nacl + ":" + newPassword);
+  const { error } = await client.auth.updateUser({
+    password: newPassword,
+  });
 
-  users[auth.username] = user;
-
-  writeUsers(users);
+  if (error) {
+    throw new Error(
+        error.message || "Could not change the password.",
+    );
+  }
 }
 
-export function deleteCurrentAccount() {
+export async function deleteCurrentAccount() {
   const auth = getAuth();
 
-  if (!auth) {
-    throw new Error("Not logged in");
+  if (!auth?.token) {
+    throw new Error("Not logged in.");
   }
 
-  const users = readUsers();
+  const base = String(
+      get("network.apiUrl") ||
+      import.meta.env.VITE_API_URL ||
+      "",
+  )
+      .trim()
+      .replace(/\/+$/, "");
 
-  delete users[auth.username];
+  if (!base) {
+    throw new Error(
+        "Set the Node API URL before deleting the account.",
+    );
+  }
 
-  writeUsers(users);
+  const response = await fetch(`${base}/account`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${auth.token}`,
+    },
+  });
 
-  localStorage.removeItem(SESSION_KEY);
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {
+    // The response is handled below.
+  }
+
+  if (!response.ok || data.ok !== true) {
+    throw new Error(
+        data.error ||
+        data.message ||
+        `Account deletion failed (${response.status}).`,
+    );
+  }
+
+  if (supabase) {
+    await supabase.auth.signOut();
+  }
 
   currentUser = null;
-
   location.reload();
 }
 
 export async function resizeAvatar(file) {
   if (!file || !file.type.startsWith("image/")) {
-    throw new Error("Please select an image");
+    throw new Error("Please select an image.");
   }
 
   if (file.type === "image/svg+xml") {
-    throw new Error("SVG avatars are not supported");
+    throw new Error("SVG avatars are not supported.");
   }
 
   if (file.size > 10 * 1024 * 1024) {
-    throw new Error("Avatar must be smaller than 10 MB");
+    throw new Error("Avatar must be smaller than 10 MB.");
   }
 
   const bitmap = await createImageBitmap(file);
 
-  const size = Math.min(bitmap.width, bitmap.height);
+  try {
+    const size = Math.min(bitmap.width, bitmap.height);
 
-  const canvas = document.createElement("canvas");
+    const canvas = document.createElement("canvas");
 
-  canvas.width = 256;
-  canvas.height = 256;
+    canvas.width = 256;
+    canvas.height = 256;
 
-  const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
 
-  ctx.drawImage(
-    bitmap,
-    (bitmap.width - size) / 2,
-    (bitmap.height - size) / 2,
-    size,
-    size,
-    0,
-    0,
-    256,
-    256,
-  );
+    if (!ctx) {
+      throw new Error("Could not process this image.");
+    }
 
-  return canvas.toDataURL("image/webp", 0.85);
+    ctx.drawImage(
+        bitmap,
+        (bitmap.width - size) / 2,
+        (bitmap.height - size) / 2,
+        size,
+        size,
+        0,
+        0,
+        256,
+        256,
+    );
+
+    return canvas.toDataURL("image/webp", 0.85);
+  } finally {
+    bitmap.close?.();
+  }
 }
 
-export function bootAuth() {
-  restoreSession();
+export async function bootAuth() {
+  const gate = document.getElementById("authGate");
+
+  try {
+    const client = requireSupabase();
+
+    const { data, error } = await client.auth.getSession();
+
+    if (error) {
+      throw error;
+    }
+
+    currentUser = toAuth(data.session);
+
+    if (currentUser) {
+      gate?.remove();
+      return currentUser;
+    }
+  } catch (error) {
+    const message = document.getElementById("authMsg");
+
+    if (message) {
+      message.textContent =
+          error.message ||
+          "Supabase Auth is not configured.";
+    }
+
+    return null;
+  }
+
+  if (!gate) {
+    return null;
+  }
+
+  const userInput = document.getElementById("authUser");
+  const passInput = document.getElementById("authPass");
+  const submit = document.getElementById("authSubmit");
+  const switchButton = document.getElementById("authSwitch");
+  const message = document.getElementById("authMsg");
+
+  let mode = hasAnyUser() ? "login" : "register";
 
   return new Promise((resolve) => {
-    const existing = getAuth();
-
-    if (existing) {
-      document.getElementById("authGate")?.remove();
-
-      resolve(existing);
-      return;
-    }
-
-    const gate = document.getElementById("authGate");
-
-    if (!gate) {
-      resolve(null);
-      return;
-    }
-
-    const user = document.getElementById("authUser");
-
-    const pass = document.getElementById("authPass");
-
-    const submit = document.getElementById("authSubmit");
-
-    const switchBtn = document.getElementById("authSwitch");
-
-    const msg = document.getElementById("authMsg");
-
-    let mode = hasAnyUser() ? "login" : "register";
-
     function render() {
       const registering = mode === "register";
 
-      submit.textContent = registering ? "Register" : "Log in";
+      submit.textContent = registering
+          ? "Register"
+          : "Log in";
 
-      switchBtn.textContent = registering
-        ? "Already registered? Log in"
-        : "No account? Register";
+      switchButton.textContent = registering
+          ? "Already registered? Log in"
+          : "No account? Register";
 
-      msg.textContent = "";
+      message.textContent = "";
+      passInput.value = "";
 
-      pass.value = "";
+      passInput.autocomplete = registering
+          ? "new-password"
+          : "current-password";
 
-      pass.autocomplete = registering ? "new-password" : "current-password";
-
-      user.focus();
+      userInput.focus();
     }
 
-    switchBtn.addEventListener("click", () => {
+    switchButton.addEventListener("click", () => {
       mode = mode === "register" ? "login" : "register";
-
       render();
     });
 
     gate.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const username = user.value.trim();
-
-      const password = pass.value;
+      const username = normalizedUsername(userInput.value);
+      const password = passInput.value;
 
       if (!username || !password) {
-        msg.textContent = "Username and password are required";
-
+        message.textContent =
+            "Username and password are required.";
         return;
       }
 
       submit.disabled = true;
-      msg.textContent = "Working...";
+
+      message.textContent =
+          mode === "register"
+              ? "Creating account…"
+              : "Signing in…";
 
       try {
-        if (mode === "register") {
-          await register(username, password);
+        const auth =
+            mode === "register"
+                ? await register(username, password)
+                : await login(username, password);
+
+        if (!auth) {
+          mode = "login";
+          submit.disabled = false;
+          render();
+
+          message.textContent =
+              "Registration did not create a session. Log in and try again.";
+
+          return;
         }
 
-        const session = await login(username, password);
-
         gate.remove();
-
-        resolve(session);
+        resolve(auth);
       } catch (error) {
-        msg.textContent = error.message || "Authentication failed";
+        message.textContent =
+            error.message || "Authentication failed.";
 
         submit.disabled = false;
       }
