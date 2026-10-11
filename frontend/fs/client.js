@@ -1,110 +1,204 @@
+// frontend/fs/client.js
+
 import { getAuth } from "../auth.js";
+import { get } from "../core/settings-store.js";
 
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:8080"
-).replace(/\/+$/, "");
+const API_URL = String(
+    get("network.apiUrl") ||
+    import.meta.env.VITE_API_URL ||
+    "",
+)
+    .trim()
+    .replace(/\/+$/, "");
 
-const BASE = `${API_URL}/fs`;
-const REQUEST_TIMEOUT = 15000;
+const API_BASE =
+    API_URL || (import.meta.env.DEV ? "http://localhost:3000" : "");
+
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 export class FsError extends Error {
   constructor(code, message, cwd = "") {
-    super(message);
+    super(message || "Filesystem operation failed.");
     this.name = "FsError";
-    this.code = code;
-    this.cwd = cwd;
+    this.code = code || "INTERNAL";
+    this.cwd = normalizePath(cwd);
   }
 }
 
-export async function fs(op, { cwd = "", ...args } = {}) {
-  const auth = getAuth();
-
-  if (!auth?.token) {
-    throw new FsError("UNAUTHENTICATED", "You are not logged in.", cwd);
+export function normalizePath(path) {
+  if (path === undefined || path === null || path === "") {
+    return "";
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+  return String(path)
+      .replace(/\\/g, "/")
+      .split("/")
+      .filter((part) => part && part !== ".")
+      .join("/");
+}
 
-  let response;
+export function basename(path) {
+  const normalized = normalizePath(path);
 
-  try {
-    response = await fetch(BASE, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify({ cwd, op, ...args }),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new FsError("TIMEOUT", "The filesystem request timed out.", cwd);
-    }
+  if (!normalized) return "";
 
+  return normalized.slice(normalized.lastIndexOf("/") + 1);
+}
+
+export function dirname(path) {
+  const normalized = normalizePath(path);
+
+  if (!normalized || !normalized.includes("/")) {
+    return "";
+  }
+
+  return normalized.slice(0, normalized.lastIndexOf("/"));
+}
+
+export function joinPath(parent, child) {
+  const left = normalizePath(parent);
+  const right = normalizePath(child);
+
+  if (!left) return right;
+  if (!right) return left;
+
+  return `${left}/${right}`;
+}
+
+function getToken() {
+  const auth = getAuth();
+
+  if (!auth || typeof auth.token !== "string" || !auth.token.trim()) {
     throw new FsError(
-      "NETWORK",
-      "Could not reach the filesystem backend.",
-      cwd,
+        "UNAUTHORIZED",
+        "You must be logged in to access your files.",
     );
-  } finally {
-    clearTimeout(timeout);
+  }
+
+  return auth.token;
+}
+
+function getProfile() {
+  const auth = getAuth();
+
+  if (
+      !auth ||
+      typeof auth.profile !== "string" ||
+      !/^[A-Za-z0-9_-]{1,64}$/.test(auth.profile)
+  ) {
+    throw new FsError(
+        "UNAUTHORIZED",
+        "Your filesystem profile is unavailable. Log in again.",
+    );
+  }
+
+  return auth.profile;
+}
+
+function getApiEndpoint() {
+  if (!API_BASE && !window.location.origin) {
+    throw new FsError("INTERNAL", "The filesystem API URL is unavailable.");
+  }
+
+  return `${API_BASE}/fs`;
+}
+
+async function readResponse(response) {
+  const contentLength = Number(response.headers.get("content-length") || 0);
+
+  if (contentLength > MAX_RESPONSE_BYTES) {
+    throw new FsError(
+        "TOO_LARGE",
+        "The server response exceeds the allowed size.",
+    );
+  }
+
+  const text = await response.text();
+
+  if (text.length > MAX_RESPONSE_BYTES) {
+    throw new FsError(
+        "TOO_LARGE",
+        "The server response exceeds the allowed size.",
+    );
   }
 
   let data;
 
   try {
-    data = await response.json();
+    data = JSON.parse(text);
   } catch {
     throw new FsError(
-      "BAD_RESPONSE",
-      `The server returned an invalid response (${response.status}).`,
-      cwd,
+        "BAD_RESPONSE",
+        "The filesystem server returned invalid JSON.",
     );
   }
 
   if (!response.ok || data?.ok !== true) {
     throw new FsError(
-      data?.code || `HTTP_${response.status}`,
-      data?.message || `Filesystem request failed (${response.status}).`,
-      data?.cwd ?? cwd,
+        data?.code || "INTERNAL",
+        data?.message || `Filesystem request failed (${response.status}).`,
+        data?.cwd || "",
     );
   }
 
-  if (!("result" in data)) {
+  if (!data.result || typeof data.result !== "object") {
     throw new FsError(
-      "BAD_RESPONSE",
-      "The server response is missing its result.",
-      cwd,
+        "BAD_RESPONSE",
+        "The filesystem server returned an invalid result.",
+        data.cwd || "",
     );
   }
 
   return data;
 }
 
-export const basename = (path = "") =>
-  path.split("/").filter(Boolean).pop() || "";
-
-export const dirname = (path = "") => {
-  const parts = path.split("/").filter(Boolean);
-  parts.pop();
-  return parts.join("/");
-};
-
-export function normalizePath(path = "") {
-  const parts = [];
-
-  for (const part of path.split("/")) {
-    if (!part || part === ".") continue;
-
-    if (part === "..") {
-      if (parts.length) parts.pop();
-      continue;
-    }
-
-    parts.push(part);
+export async function fs(op, options = {}) {
+  if (typeof op !== "string" || !op.trim()) {
+    throw new FsError("INVALID_REQUEST", "A filesystem operation is required.");
   }
 
-  return parts.join("/");
+  if (!options || typeof options !== "object" || Array.isArray(options)) {
+    throw new FsError("INVALID_REQUEST", "Invalid filesystem request.");
+  }
+
+  const token = getToken();
+  const profile = getProfile();
+
+  const body = {
+    ...options,
+    op,
+    profile,
+  };
+
+  if (body.cwd !== undefined) {
+    body.cwd = normalizePath(body.cwd);
+  }
+
+  if (body.path !== undefined && body.path !== "") {
+    body.path = normalizePath(body.path);
+  }
+
+  if (body.destination !== undefined) {
+    body.destination = normalizePath(body.destination);
+  }
+
+  let response;
+
+  try {
+    response = await fetch(getApiEndpoint(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new FsError(
+        "NETWORK_ERROR",
+        "Could not connect to the filesystem server. Check your connection and API URL.",
+    );
+  }
+
+  return readResponse(response);
 }
