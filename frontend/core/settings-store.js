@@ -74,7 +74,7 @@ const SCHEMA = {
   "appearance.fontScale": {
     type: "number",
     default: 100,
-    min: 85,
+    min: 80,
     max: 130,
     group: "appearance",
     label: "Font scale",

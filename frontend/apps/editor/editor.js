@@ -78,6 +78,8 @@ export function startEditor(root, win, appmanager) {
       tabsEl.appendChild(el);
     }
 
+    syncTabStates();
+
     const add = document.createElement("button");
     add.type = "button";
     add.className = "editor-tab-add";
@@ -86,6 +88,22 @@ export function startEditor(root, win, appmanager) {
     add.setAttribute("aria-label", "Open file");
     add.addEventListener("click", () => showDialog("open"));
     tabsEl.appendChild(add);
+  }
+
+  function syncTabStates() {
+    const nodes = tabsEl.querySelectorAll(".editor-tab");
+
+    tabs.forEach((tab, index) => {
+      const node = nodes[index];
+
+      if (!node) return;
+
+      const active = tab.id === activeId;
+
+      node.classList.toggle("active", active);
+      node.classList.toggle("dirty", tab.dirty);
+      node.setAttribute("aria-selected", String(active));
+    });
   }
 
   function commitActiveTab() {
@@ -102,12 +120,19 @@ export function startEditor(root, win, appmanager) {
     );
   }
 
-  function updateDirtyUI() {
+  function refreshDirtyIndicators() {
     const dirtyCount = tabs.filter((tab) => tab.dirty).length;
+
     badgeEl.hidden = dirtyCount === 0;
     badgeEl.textContent = dirtyCount ? `${dirtyCount} unsaved` : "";
-    renderTabs();
+
+    syncTabStates();
     updateTitle();
+  }
+
+  function updateDirtyUI() {
+    renderTabs();
+    refreshDirtyIndicators();
   }
 
   function activateTab(id) {
@@ -177,7 +202,7 @@ export function startEditor(root, win, appmanager) {
     tab.content = text.value;
     tab.dirty = tab.content !== tab.savedContent;
 
-    updateDirtyUI();
+    refreshDirtyIndicators();
     syncGutter();
     syncStatus();
   }
@@ -294,7 +319,6 @@ export function startEditor(root, win, appmanager) {
         }
       }
 
-      renderTabs();
       updateDirtyUI();
       status("Tab closed");
     };
@@ -460,35 +484,36 @@ export function startEditor(root, win, appmanager) {
     return tabs.some((tab) => tab.dirty);
   }
 
-  function requestClose() {
-    if (!hasDirtyTabs()) {
-      win.close();
-      return;
-    }
+  const baseOnClose = win.onclose;
 
-    confirmDiscard("The editor has unsaved changes. Close it anyway?", () => {
-      win.onclose = null;
-      win.close();
-    });
+  function release() {
+    offOpen();
+    disposed = true;
+    win.onclose = baseOnClose;
   }
 
-  // AppManager must honor the onClose return value for this guard.
-  // See Chapter 5.
-  win.onclose = () => {
-    if (!hasDirtyTabs()) {
-      offOpen();
-      disposed = true;
-      return false;
+  function confirmClose() {
+    return (
+      !hasDirtyTabs() ||
+      window.confirm("The editor has unsaved changes. Close it anyway?")
+    );
+  }
+
+  function requestClose() {
+    if (!confirmClose()) return;
+
+    release();
+    win.close();
+  }
+
+  win.onclose = (force) => {
+    if (!confirmClose()) {
+      return true;
     }
 
-    confirmDiscard("The editor has unsaved changes. Close it anyway?", () => {
-      offOpen();
-      disposed = true;
-      win.onclose = null;
-      win.close();
-    });
+    release();
 
-    return true;
+    return baseOnClose ? baseOnClose.call(win, force) : false;
   };
 
   text.disabled = true;
@@ -501,9 +526,6 @@ export function startEditor(root, win, appmanager) {
     openPath,
     save,
     requestClose,
-    dispose() {
-      disposed = true;
-      offOpen();
-    },
+    dispose: release,
   };
 }

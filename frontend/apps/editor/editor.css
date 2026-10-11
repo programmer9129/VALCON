@@ -64,7 +64,7 @@
   flex: 1;
 }
 
-.editor-toolnbar-status {
+.editor-toolbar-status {
   color: var(--muted, #9da7b6);
   font-size: 11px;
   overflow: hidden;
@@ -133,7 +133,7 @@
   text-align: right;
   white-space: pre;
   user-select: none;
-  color: var(--muted, $6b7280);
+  color: var(--muted, #7a8494);
   background: var(--surface, #11151d);
   border-right: 1px solid var(--border, #303744);
   font: inherit;
@@ -218,7 +218,7 @@
   background: rgb(0 0 0 / 45%);
 }
 
-.editor-overlay[hidde] {
+.editor-overlay[hidden] {
   display: none;
 }
 
@@ -266,7 +266,7 @@
   color: white !important;
 }
 
-@media (max-width: 520px) {
+@container valcon-window (max-width: 560px) {
   .editor-toolbar-status {
     display: none;
   }

@@ -186,7 +186,7 @@ export function startTerminal(root) {
 
   row.append(prompt, typed, cursor, after, input);
 
-  output.appendChild(row);
+  terminal.appendChild(row);
 
   applySettings();
   scroll();

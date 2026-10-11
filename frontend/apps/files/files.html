@@ -7,7 +7,7 @@
         title="Back"
         aria-label="Back"
       >
-        <-
+        ←
       </button>
       <button
         class="files-icon-btn"
@@ -15,7 +15,7 @@
         title="Parent folder"
         aria-label="Parent folder"
       >
-        ..
+        ↑
       </button>
       <button
         class="files-icon-btn"
@@ -23,27 +23,27 @@
         title="Refresh"
         aria-label="Refresh"
       >
-        ↻
+        ⟳
       </button>
     </div>
 
     <div class="files-address">
-      <span class="files-address-icon"></span>
-      <div class="files-breadcrumbs" aria-label="Current path"></div>
+      <span class="files-address-icon" aria-hidden="true"></span>
+      <nav class="files-breadcrumbs" aria-label="Current path"></nav>
     </div>
   </header>
 
   <div class="files-actions">
-    <button data-action="new-file">+ File</button>
-    <button data-action="new-folder">+ Folder</button>
+    <button data-action="new-file">New file</button>
+    <button data-action="new-folder">New folder</button>
     <button data-action="rename" disabled>Rename</button>
-    <button data-action="delete" disabled>+ File</button>
+    <button data-action="delete" class="files-danger" disabled>Delete</button>
 
     <div class="files-search-wrap">
       <input
         class="files-search"
         type="search"
-        placeholder="Search tis folder...."
+        placeholder="Search this folder…"
         aria-label="Search current folder"
       />
     </div>
@@ -51,10 +51,10 @@
 
   <main class="files-main">
     <aside class="files-sidebar">
-      <div class="files-sidebar-heading">LOCATIONS</div>
+      <div class="files-sidebar-heading">Locations</div>
 
       <button class="files-location active" data-location="">
-        <span class="files-location-icon">⌂</span>
+        <span class="files-location-icon" aria-hidden="true">⌂</span>
         Home
       </button>
     </aside>
@@ -70,17 +70,17 @@
       <div
         class="files-list"
         role="listbox"
-        aria-label="Files Und Folders"
+        aria-label="Files and folders"
       ></div>
 
       <div class="files-empty" hidden>
-        <div class="files-empty-icon">∅</div>
-        <strong>Folder is empty..</strong>
-        <p>Create a file/folder to begin</p>
+        <div class="files-empty-icon" aria-hidden="true">∅</div>
+        <strong>This folder is empty</strong>
+        <p>Create a file or folder to get started.</p>
       </div>
 
-      <div class="files-error" hidden role="alety"></div>
-      <div class="files-loading" hidden>Loading files...</div>
+      <div class="files-error" role="alert" hidden></div>
+      <div class="files-loading" hidden>Loading…</div>
     </section>
   </main>
 
@@ -88,4 +88,29 @@
     <span class="files-item-count">Ready</span>
     <span class="files-current-path">/</span>
   </footer>
+
+  <div class="files-dialog-overlay" hidden>
+    <form class="files-dialog">
+      <h2 class="files-dialog-title">New file</h2>
+
+      <p class="files-dialog-message" hidden></p>
+
+      <input
+        class="files-dialog-input"
+        type="text"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+      />
+
+      <p class="files-dialog-error" role="alert"></p>
+
+      <div class="files-dialog-actions">
+        <button type="button" data-dialog="cancel">Cancel</button>
+        <button type="submit" data-dialog="confirm" class="files-primary">
+          Create
+        </button>
+      </div>
+    </form>
+  </div>
 </div>

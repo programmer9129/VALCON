@@ -1,4 +1,5 @@
 import { get } from "./core/settings-store.js";
+import { getAuth } from "./auth.js";
 
 let token = null;
 
@@ -25,13 +26,9 @@ export function bridgeUrl() {
 }
 
 export async function loadToken() {
-  try {
-    const auth = await import("./auth.js");
+  const auth = getAuth();
 
-    token = auth.getAuth() ? auth.getAuth().token : null;
-  } catch {
-    token = null;
-  }
+  token = auth ? auth.token : null;
 }
 
 function headers() {

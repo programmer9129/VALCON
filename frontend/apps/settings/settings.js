@@ -414,11 +414,17 @@ function setupAccount(root) {
 
   const avatar = $(root, "#accountAvatar");
 
-  if (profile.avatar) {
-    avatar.src = profile.avatar;
-  } else {
-    avatar.removeAttribute("src");
-  }
+  const setAvatar = (src) => {
+    if (src) {
+      avatar.src = src;
+      avatar.hidden = false;
+    } else {
+      avatar.removeAttribute("src");
+      avatar.hidden = true;
+    }
+  };
+
+  setAvatar(profile.avatar);
 
   const avatarInput = $(root, "#avatarInput");
 
@@ -438,7 +444,7 @@ function setupAccount(root) {
         avatar: data,
       });
 
-      avatar.src = data;
+      setAvatar(data);
     } catch (error) {
       alert(error.message);
     }
@@ -451,15 +457,25 @@ function setupAccount(root) {
       avatar: "",
     });
 
-    avatar.removeAttribute("src");
+    setAvatar("");
   });
 
-  $(root, "#saveProfile")?.addEventListener("click", () => {
+  $(root, "#saveProfile")?.addEventListener("click", (event) => {
+    const button = event.currentTarget;
+
     updateProfile({
       displayName: $(root, "#displayName").value.trim() || auth.username,
 
       bio: $(root, "#accountBio").value.trim(),
     });
+
+    button.textContent = "Saved";
+    button.disabled = true;
+
+    setTimeout(() => {
+      button.textContent = "Save profile";
+      button.disabled = false;
+    }, 1200);
   });
 
   $(root, "#logoutBtn")?.addEventListener("click", () => {
@@ -566,8 +582,11 @@ function setupPrivacy(root) {
 }
 
 function setupAbout(root) {
-  $(root, "#runtimeInfo").textContent =
-    `${navigator.platform} · ${navigator.language}`;
+  const platform = navigator.userAgentData?.platform || navigator.platform || "";
+
+  $(root, "#runtimeInfo").textContent = [platform, navigator.language]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function startSettings(win) {

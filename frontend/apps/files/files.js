@@ -23,12 +23,22 @@ export function startFiles(content, win, manager) {
   const backButton = $('[data-action="back"]');
   const upButton = $('[data-action="up"]');
 
+  const dialogOverlay = $(".files-dialog-overlay");
+  const dialogForm = $(".files-dialog");
+  const dialogTitle = $(".files-dialog-title");
+  const dialogMessage = $(".files-dialog-message");
+  const dialogInput = $(".files-dialog-input");
+  const dialogError = $(".files-dialog-error");
+  const dialogConfirm = $('[data-dialog="confirm"]');
+
   let currentPath = "";
   let entries = [];
   let selectedName = null;
   let history = [];
   let historyIndex = -1;
   let requestId = 0;
+  let dialogResolve = null;
+  let dialogValidator = null;
 
   function normalizePath(path) {
     return String(path || "")
@@ -123,6 +133,53 @@ export function startFiles(content, win, manager) {
   function clearError() {
     errorBox.textContent = "";
     errorBox.hidden = true;
+  }
+
+  function settleDialog(result) {
+    const resolve = dialogResolve;
+
+    dialogResolve = null;
+    dialogValidator = null;
+    dialogOverlay.hidden = true;
+    dialogError.textContent = "";
+
+    resolve?.(result);
+  }
+
+  function openDialog(options) {
+    const {
+      title,
+      message = "",
+      value = null,
+      confirmText = "OK",
+      danger = false,
+      validator = null,
+    } = options;
+
+    return new Promise((resolve) => {
+      dialogResolve = resolve;
+      dialogValidator = validator;
+
+      dialogTitle.textContent = title;
+      dialogMessage.textContent = message;
+      dialogMessage.hidden = !message;
+
+      dialogInput.hidden = value === null;
+      dialogInput.value = value ?? "";
+
+      dialogConfirm.textContent = confirmText;
+      dialogConfirm.classList.toggle("danger", danger);
+
+      dialogError.textContent = "";
+      dialogOverlay.hidden = false;
+
+      if (value !== null) {
+        dialogInput.focus();
+        dialogInput.select();
+      } else {
+        dialogConfirm.focus();
+      }
+    });
   }
 
   function updateControls() {
@@ -327,25 +384,48 @@ export function startFiles(content, win, manager) {
 
   function selectEntry(name) {
     selectedName = name;
-    renderEntries();
+
+    for (const row of list.querySelectorAll(".files-entry")) {
+      const selected = row.dataset.name === name;
+
+      row.classList.toggle("selected", selected);
+      row.setAttribute("aria-selected", String(selected));
+    }
+
+    updateControls();
   }
 
   function selectedEntry() {
     return entries.find((entry) => entry.name === selectedName) || null;
   }
 
-  async function createFile() {
-    const rawName = prompt("New file name:");
+  function uniqueNameValidator(current = null) {
+    return (raw) => {
+      const name = safeName(raw);
 
-    if (rawName === null) return;
-
-    try {
-      const name = safeName(rawName);
+      if (name === current) {
+        return name;
+      }
 
       if (entries.some((entry) => entry.name === name)) {
         throw new Error("An item with that name already exists.");
       }
 
+      return name;
+    };
+  }
+
+  async function createFile() {
+    const name = await openDialog({
+      title: "New file",
+      value: "",
+      confirmText: "Create",
+      validator: uniqueNameValidator(),
+    });
+
+    if (name === null) return;
+
+    try {
       await fs("write", {
         cwd: currentPath,
         path: name,
@@ -360,17 +440,16 @@ export function startFiles(content, win, manager) {
   }
 
   async function createFolder() {
-    const rawName = prompt("New folder name:");
+    const name = await openDialog({
+      title: "New folder",
+      value: "",
+      confirmText: "Create",
+      validator: uniqueNameValidator(),
+    });
 
-    if (rawName === null) return;
+    if (name === null) return;
 
     try {
-      const name = safeName(rawName);
-
-      if (entries.some((entry) => entry.name === name)) {
-        throw new Error("An item with that name already exists.");
-      }
-
       await fs("mkdir", {
         cwd: currentPath,
         path: name,
@@ -388,19 +467,16 @@ export function startFiles(content, win, manager) {
 
     if (!entry) return;
 
-    const rawName = prompt("Rename to:", entry.name);
+    const newName = await openDialog({
+      title: "Rename",
+      value: entry.name,
+      confirmText: "Rename",
+      validator: uniqueNameValidator(entry.name),
+    });
 
-    if (rawName === null) return;
+    if (newName === null || newName === entry.name) return;
 
     try {
-      const newName = safeName(rawName);
-
-      if (newName === entry.name) return;
-
-      if (entries.some((item) => item.name === newName)) {
-        throw new Error("An item with that name already exists.");
-      }
-
       await fs("mv", {
         cwd: currentPath,
         path: entry.name,
@@ -422,9 +498,12 @@ export function startFiles(content, win, manager) {
 
     const kind = isDirectory(entry) ? "folder" : "file";
 
-    const confirmed = confirm(
-      `Delete ${kind} "${entry.name}"?\n\nThis action may not be reversible.`,
-    );
+    const confirmed = await openDialog({
+      title: `Delete ${kind}`,
+      message: `Delete "${entry.name}"? This action cannot be undone.`,
+      confirmText: "Delete",
+      danger: true,
+    });
 
     if (!confirmed) return;
 
@@ -470,6 +549,49 @@ export function startFiles(content, win, manager) {
 
     await openFile(entry);
   }
+
+  dialogForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    if (dialogInput.hidden) {
+      settleDialog(true);
+      return;
+    }
+
+    const raw = dialogInput.value;
+
+    if (!raw.trim()) {
+      dialogError.textContent = "A name is required.";
+      return;
+    }
+
+    if (dialogValidator) {
+      try {
+        settleDialog(dialogValidator(raw));
+      } catch (error) {
+        dialogError.textContent = error.message;
+      }
+
+      return;
+    }
+
+    settleDialog(raw);
+  });
+
+  dialogOverlay.addEventListener("click", (event) => {
+    if (event.target === dialogOverlay) {
+      settleDialog(null);
+    }
+  });
+
+  dialogOverlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      settleDialog(null);
+    }
+  });
+
+  $('[data-dialog="cancel"]').addEventListener("click", () => settleDialog(null));
 
   root.addEventListener("click", async (event) => {
     const actionButton = event.target.closest("[data-action]");
@@ -538,6 +660,31 @@ export function startFiles(content, win, manager) {
     if (event.key === "Enter") {
       event.preventDefault();
       await activateEntry(row.dataset.name);
+      return;
+    }
+
+    if (event.key === "Delete") {
+      event.preventDefault();
+      await deleteSelected();
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+
+      const rows = [...list.querySelectorAll(".files-entry")];
+      const index = rows.indexOf(row);
+      const target = rows[event.key === "ArrowDown" ? index + 1 : index - 1];
+
+      if (!target) return;
+
+      const name = target.dataset.name;
+
+      selectEntry(name);
+
+      list
+        .querySelector(`.files-entry[data-name="${CSS.escape(name)}"]`)
+        ?.focus();
     }
   });
 

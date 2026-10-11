@@ -55,12 +55,7 @@
             </div>
           </div>
 
-          <button
-            id="authSubmit"
-            type="submit"
-            class="auth-submit"
-            variant="brand"
-          >
+          <button id="authSubmit" type="submit" class="auth-submit">
             Register
           </button>
 
@@ -72,20 +67,40 @@
         </div>
       </div>
     </form>
-    <wa-page id="app" style="display: none">
+    <div id="app" hidden>
       <main id="desktop">
         <div id="wallpaper"></div>
-        <div id="dock">
-          <wa-button id="terminalApp" appearance="plain">
+        <nav id="dock" aria-label="Applications">
+          <wa-button
+            id="terminalApp"
+            appearance="plain"
+            title="Terminal"
+            aria-label="Terminal"
+          >
             <wa-icon name="terminal"></wa-icon>
           </wa-button>
-          <wa-button id="settingsApp" appearance="plain">
+          <wa-button
+            id="settingsApp"
+            appearance="plain"
+            title="Settings"
+            aria-label="Settings"
+          >
             <wa-icon name="gear"></wa-icon>
           </wa-button>
-          <wa-button id="musicApp" appearance="plain">
+          <wa-button
+            id="musicApp"
+            appearance="plain"
+            title="Music"
+            aria-label="Music"
+          >
             <wa-icon name="music"></wa-icon>
           </wa-button>
-          <wa-button id="editorApp" appearance="plain" aria-label="Editor">
+          <wa-button
+            id="editorApp"
+            appearance="plain"
+            title="Editor"
+            aria-label="Editor"
+          >
             <wa-icon name="file-lines"></wa-icon>
           </wa-button>
           <wa-button
@@ -96,9 +111,9 @@
           >
             <wa-icon name="folder-open"></wa-icon>
           </wa-button>
-        </div>
+        </nav>
       </main>
-    </wa-page>
+    </div>
 
     <script type="module" src="script.js"></script>
   </body>

@@ -1,9 +1,7 @@
 import "@awesome.me/webawesome/dist/styles/webawesome.css";
 
-import "@awesome.me/webawesome/dist/components/page/page.js";
 import "@awesome.me/webawesome/dist/components/icon/icon.js";
 import "@awesome.me/webawesome/dist/components/button/button.js";
-import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
 
 import terminalMarkup from "./apps/terminal/terminal.html?raw";
 import settingsMarkup from "./apps/settings/settings.html?raw";
@@ -67,7 +65,88 @@ function applyDockSettings(dock) {
     "--dock-opacity",
     `${get("desktop.dockOpacity") / 100}`,
   );
-  dock.classList.toggle("auto-hidden", get("desktop.dockAutoHide"));
+}
+
+function setupDockAutoHide(dock) {
+  if (!dock) return;
+
+  const EDGE = 12;
+  let revealed = false;
+  let manualHidden = false;
+
+  const autoHide = () => Boolean(get("desktop.dockAutoHide"));
+
+  const nearEdge = (x, y) => {
+    const rect = dock.getBoundingClientRect();
+    const position = dock.dataset.position || "bottom";
+
+    if (position === "top") {
+      return y <= rect.bottom + EDGE;
+    }
+
+    if (position === "left") {
+      return x <= rect.right + EDGE;
+    }
+
+    if (position === "right") {
+      return x >= rect.left - EDGE;
+    }
+
+    return y >= rect.top - EDGE;
+  };
+
+  function render() {
+    const hidden = manualHidden || (autoHide() && !revealed);
+
+    dock.classList.toggle("hidden", hidden);
+    dock.classList.toggle("revealed", revealed && autoHide() && !manualHidden);
+  }
+
+  function setRevealed(next) {
+    if (next === revealed) return;
+
+    revealed = next;
+    render();
+  }
+
+  window.addEventListener(
+    "mousemove",
+    (event) => {
+      if (!autoHide() || manualHidden) {
+        setRevealed(false);
+        return;
+      }
+
+      setRevealed(
+        nearEdge(event.clientX, event.clientY) ||
+          dock.contains(event.target),
+      );
+    },
+    { passive: true },
+  );
+
+  dock.addEventListener("mouseleave", () => {
+    if (autoHide()) setRevealed(false);
+  });
+
+  render();
+
+  return {
+    toggle() {
+      manualHidden = !manualHidden;
+      revealed = !manualHidden;
+
+      render();
+    },
+
+    reset() {
+      manualHidden = false;
+      revealed = false;
+      render();
+    },
+
+    update: render,
+  };
 }
 
 async function boot() {
@@ -81,9 +160,10 @@ async function boot() {
     throw new Error("#app not found");
   }
 
-  app.style.display = "";
+  app.hidden = false;
 
   const dock = document.getElementById("dock");
+  const dockController = setupDockAutoHide(dock);
 
   appmanager.register({
     id: "terminal",
@@ -160,16 +240,6 @@ async function boot() {
   launch("editor");
   launch("files");
 
-  applyDockSettings(dock);
-
-  let dockHidden = false;
-
-  function toggleDock() {
-    dockHidden = !dockHidden;
-
-    dock?.classList.toggle("hidden", dockHidden);
-  }
-
   window.addEventListener("keydown", (event) => {
     if (isTypingTarget(event.target)) {
       return;
@@ -178,20 +248,21 @@ async function boot() {
     if (sameShortcut(shortcutFromEvent(event), get("desktop.dockShortcut"))) {
       event.preventDefault();
 
-      toggleDock();
+      dockController?.toggle();
     }
   });
 
-  on("desktop.dockPosition", () => applyDockSettings(dock));
-  on("desktop.dockSize", () => applyDockSettings(dock));
-  on("desktop.dockGap", () => applyDockSettings(dock));
-  on("desktop.dockOpacity", () => applyDockSettings(dock));
-  on("desktop.dockAutoHide", () => applyDockSettings(dock));
-  on("desktop.dockShortcut", () => {
-    dockHidden = false;
+  const applyAndRender = () => {
+    applyDockSettings(dock);
+    dockController?.update();
+  };
 
-    dock?.classList.remove("hidden");
-  });
+  on("desktop.dockPosition", applyAndRender);
+  on("desktop.dockSize", applyAndRender);
+  on("desktop.dockGap", applyAndRender);
+  on("desktop.dockOpacity", applyAndRender);
+  on("desktop.dockAutoHide", applyAndRender);
+  on("desktop.dockShortcut", () => dockController?.reset());
 }
 
 boot().catch((error) => {

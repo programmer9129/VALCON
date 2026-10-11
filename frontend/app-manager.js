@@ -70,6 +70,10 @@ export class AppManager {
     if (app.single && this.windows.has(id)) {
       const existing = this.windows.get(id);
 
+      if (existing.min) {
+        existing.restore();
+      }
+
       existing.focus();
 
       return existing;
