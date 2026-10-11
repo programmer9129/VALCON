@@ -163,6 +163,9 @@ async function boot() {
   app.hidden = false;
 
   const dock = document.getElementById("dock");
+
+  applyDockSettings(dock);
+
   const dockController = setupDockAutoHide(dock);
 
   appmanager.register({
