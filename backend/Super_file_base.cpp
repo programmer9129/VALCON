@@ -627,6 +627,7 @@ string processstrings_profile(
 			"move : <source> <dest>                Move an enty\n"
 			"copy : <source> <dest>                Copy an entry\n"
 			"tree                                  Display directory tree\n"
+			"du                                    Show current directory size\n"
 			"find : <glob>                         Find matching entries\n"
 			"grep : <patern>                       Search text files\n"
 			"calculate <expression>=               Calculate an expression";
@@ -901,7 +902,7 @@ string processstrings_profile(
 			return "Use: deldir : <path> [--yes]";
 		}
 
-		if (validrelativepath(name) || name.empty())
+		if (!validrelativepath(name) || name.empty())
 		{
 			return "Invalid directory path.";
 		}
@@ -1041,6 +1042,38 @@ string processstrings_profile(
 		);
 	}
 
+	if (command == "du")
+	{
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"du"
+		);
+	}
+
+	if (command.rfind("grep : ", 0) == 0)
+	{
+		string pattern;
+
+		if (!parse_one(command.substr(7), pattern) || pattern.empty())
+		{
+			return " USe: grep: <pattern>";
+		}
+
+		return BRIDGERequest(
+			token,
+			profile,
+			current_path,
+			"grep",
+			"",
+			"",
+			"",
+			"",
+			pattern
+		);
+	}
+
 	if (command.rfind("find : ", 0) == 0)
 	{
 		string pattern;
@@ -1164,6 +1197,7 @@ string BRIDGERequest(
 		op == "delete_file" ||
 		op == "deldir" ||
 		op == "rename" ||
+		op == "stat" ||
 		op == "move" ||
 		op == "copy"
 		)
