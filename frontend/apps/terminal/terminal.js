@@ -11,20 +11,29 @@ const PROMPT = "valcon $ ";
 const DEFAULT_SCROLLBACK = 1000;
 
 export function startTerminal(root) {
-  const terminal = root.matches(".terminal")
+  if (!root) {
+    console.error("startTerminal: no root element");
+    return;
+  }
+
+  // Use an existing .terminal if the markup has one, otherwise build it.
+  let terminal = root.matches?.(".terminal")
       ? root
       : root.querySelector(".terminal");
 
   if (!terminal) {
-    console.error("Terminal markup is missing a .terminal root");
-    return;
+    terminal = document.createElement("div");
+    terminal.className = "terminal";
+    root.appendChild(terminal);
   }
 
-  const output = terminal.querySelector(".output");
+  // Same for the output area.
+  let output = terminal.querySelector(".output");
 
   if (!output) {
-    console.error("Terminal markup is missing an .output element");
-    return;
+    output = document.createElement("div");
+    output.className = "output";
+    terminal.prepend(output);
   }
 
   let processing = false;
@@ -110,13 +119,13 @@ export function startTerminal(root) {
 
   function echo(command) {
     const line = document.createElement("div");
-    const prompt = document.createElement("span");
+    const promptEl = document.createElement("span");
 
     line.className = "line";
-    prompt.className = "prompt";
-    prompt.textContent = PROMPT;
+    promptEl.className = "prompt";
+    promptEl.textContent = PROMPT;
 
-    line.append(prompt, document.createTextNode(command));
+    line.append(promptEl, document.createTextNode(command));
     output.appendChild(line);
 
     trimScrollback();
