@@ -70,9 +70,9 @@ function sendFsError(res, error, cwd = "") {
 
 function requireValconBridgeKey(req, res, next){
     const configured = process.env.VALCON_BRIDGE_KEY;
-    const recieved = req.get("X-VALCON-BRIDGE-KEY");
+    const received = req.get("X-VALCON-BRIDGE-KEY");
 
-    if (!configured || !recieved){
+    if (!configured || !received){
         return sendFsError(
             res,
             new FsError(
@@ -83,13 +83,13 @@ function requireValconBridgeKey(req, res, next){
     }
 
     const expectedBuffer = Buffer.from(configured);
-    const recievedBuffer = Buffer.from(recieved);
+    const receivedBuffer = Buffer.from(received);
 
     if (
-        expectedBuffer.length !== recievedBuffer.length ||
+        expectedBuffer.length !== receivedBuffer.length ||
         !require("crypto").timingSafeEqual(
             expectedBuffer,
-            recievedBuffer
+            receivedBuffer
         )
     ){
         return sendFsError(res, new FsError(
@@ -258,13 +258,13 @@ function fsCleanPath(value){
     }
 
     if (typeof value !== "string"){
-        fsRaise("INVALID PATH", "The path must be a string.");
+        fsRaise("INVALID_PATH", "The path must be a string.");
     }
 
     const raw = value.trim().replace(/\\/g, "/");
 
     if (
-        raw.startWith("/") || /^[a-zA-Z]:/.test(raw) || raw.length > 1024
+        raw.startsWith("/") || /^[a-zA-Z]:/.test(raw) || raw.length > 1024
     ){
         fsRaise("INVALID_PATH", "invalid file sytem path");
     }
@@ -404,7 +404,7 @@ async function fsResolveEntry(
             user,
             profile,
             current.id,
-            parts
+            part
         );
 
         if (!child){
@@ -602,7 +602,7 @@ async function fsRemoveSubtree(
             .delete()
             .eq("owner_id", user.id)
             .eq("profile", profile)
-            .eq("id", entry.id);
+            .eq("id", item.id);
 
         if (error){
             throw error;
@@ -656,7 +656,7 @@ async function fsCloneEntry(
                 user,
                 profile,
                 child,
-                copy.id,
+                copy["id"],
                 child.name,
                 destinationPath ? `${destinationPath}/${child.name}` : child.name
             );
@@ -885,8 +885,6 @@ const supabase = createClient(
 
 const PORT = process.env.PORT || 3000;//dont change this varieable
 
-app.use(express.json());
-
 app.post("/server_bridge/fs", requireValconBridgeKey,
     async (req,res) => {
         let cwd = "";
@@ -1020,7 +1018,7 @@ app.post("/server_bridge/fs", requireValconBridgeKey,
                 if (error){
                     if (error.code === "23505"){
                         throw new FsError(
-                            "EXISTS",
+                            "ALREADY_EXISTS",
                             `an entry named '${name}' already exists.`
                         );
                     }
@@ -1031,17 +1029,19 @@ app.post("/server_bridge/fs", requireValconBridgeKey,
                 return sendFsSuccess(
                     res,
                     {
-                        message: "DIrectory created.",
-                        entry:{
-                            id: data.id,
-                            name: data.name,
-                            kind: data.kind,
-                            size: data.size,
-                            created_at: data.created_at,
-                            updated_at: data.updated_at
-                        }
-                    },
-                    cwd
+                        result:{
+                            message: "Directory created.",
+                            entry: {
+                                id: data["id"],
+                                name: data["name"],
+                                kind: data["kind"],
+                                size: data["size"],
+                                created_at: data["created_at"],
+                                updated_at: data["updated_at"] ?? data["created_at"] ?? null
+                            }
+                        },
+                        cwd
+                    }
                 );
             }
 
@@ -1235,7 +1235,7 @@ app.get("/server_bridge/supabase", async (req, res) =>{
         console.error("SUPABASE ERROR: ", error);
 
         return res.status(502).json({
-            sccess: false,
+            success: false,
             service: "supabase",
             status: "error",
             error: "Supabase health check failed"
@@ -1570,6 +1570,7 @@ app.post("/server_bridge/folders/check", async(req, res) => {
             operation: "check",
             profile: cleanProfile,
             path: cleanPath,
+            exists: Boolean(exists)
         });
     } catch (error){
         console.error("FOLDER CHECK ERROR:", error);
