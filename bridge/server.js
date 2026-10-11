@@ -22,6 +22,14 @@ const SUPABASE_SERVICE_KEY =
     "";
 const VALCON_BRIDGE_KEY = process.env.VALCON_BRIDGE_KEY || "";
 
+import { createClient } from "@supabase/supabase-js";
+
+const adminSupabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+);
+
 const FS_OPERATIONS = new Set(FS_CONTRACT.request.properties.op.enum);
 
 const IMPLEMENTED_OPERATIONS = new Set([

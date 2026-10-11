@@ -311,14 +311,36 @@ export function startTerminal(root) {
 
   window.addEventListener("focus", focusHandler);
 
-  // Respect the terminal's copy-on-select setting.
-  const mouseHandler = () => {
-    if (!get("terminal.copyOnSelect")) {
-      input.focus();
+  /*
+   * Give the terminal keyboard control back when it is clicked.
+   *
+   * This must be a click handler, not mousedown: the browser moves focus
+   * to the clicked element (or the page body) AFTER mousedown handlers
+   * run, which undoes any input.focus() called there. By click time the
+   * browser has finished, so our focus() call sticks.
+   *
+   * If the user is selecting text inside the terminal we leave focus
+   * alone, so selecting and copying still works.
+   */
+  const clickHandler = () => {
+    if (disposed || input.disabled) {
+      return;
     }
+
+    const selection = window.getSelection();
+
+    if (
+        selection &&
+        !selection.isCollapsed &&
+        terminal.contains(selection.anchorNode)
+    ) {
+      return;
+    }
+
+    input.focus({ preventScroll: true });
   };
 
-  terminal.addEventListener("mousedown", mouseHandler);
+  terminal.addEventListener("click", clickHandler);
 
   // Subscribe to terminal setting changes.
   const unsubscribe = [
@@ -356,7 +378,7 @@ export function startTerminal(root) {
       disposed = true;
 
       window.removeEventListener("focus", focusHandler);
-      terminal.removeEventListener("mousedown", mouseHandler);
+      terminal.removeEventListener("click", clickHandler);
 
       for (const unsubscribeHandler of unsubscribe) {
         unsubscribeHandler();
