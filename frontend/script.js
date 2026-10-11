@@ -8,10 +8,12 @@ import "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
 import terminalMarkup from "./apps/terminal/terminal.html?raw";
 import settingsMarkup from "./apps/settings/settings.html?raw";
 import musicMarkup from "./apps/music/music.html?raw";
+import editorMarkup from "./apps/editor/editor.html?raw";
 
 import { startMusic } from "./apps/music/music.js";
 import { startTerminal } from "./apps/terminal/terminal.js";
 import { startSettings } from "./apps/settings/settings.js";
+import { startEditor } from "./apps/editor/editor.js";
 
 import { bootAuth } from "./auth.js";
 
@@ -115,6 +117,18 @@ async function boot() {
     start: startMusic,
   });
 
+  appmanager.register({
+    id: "editor",
+    title: "Editor",
+    html: editorMarkup,
+    width: "820px",
+    height: "560px",
+    minwidth: "420px",
+    minheight: "240px",
+    single: true,
+    start: startEditor,
+  });
+
   const launch = (id) => {
     const win = document.getElementById(`${id}App`);
 
@@ -128,6 +142,7 @@ async function boot() {
   launch("terminal");
   launch("settings");
   launch("music");
+  launch("editor");
 
   applyDockSettings(dock);
 

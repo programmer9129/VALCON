@@ -13,7 +13,7 @@ export function startEditor(root, win, appmanager) {
   const pathEl = root.querySelector(".editor-path");
   const badgeEl = root.querySelector(".editor-badge");
   const metaEl = root.querySelector(".editor-meta");
-  const wrapEl = root.querySelector(".editor-wrap-btn");
+  const wrapBtn = root.querySelector(".editor-wrap-btn");
   const overlay = root.querySelector(".editor-overlay");
   const dialog = root.querySelector(".editor-dialog");
   const dialogTitle = root.querySelector(".editor-dialog-title");
@@ -36,7 +36,7 @@ export function startEditor(root, win, appmanager) {
   }
 
   function reportError(error) {
-    consolve.error("[VALCON Editor]", error);
+    console.error("[VALCON Editor]", error);
     status(error.message || "Operation failed");
   }
 
@@ -51,17 +51,18 @@ export function startEditor(root, win, appmanager) {
       el.setAttribute("role", "tab");
       el.setAttribute("aria-selected", String(tab.id === activeId));
 
-      const name = document.createElement("name");
+      const name = document.createElement("span");
       name.className = "editor-tab-name";
       name.textContent = tab.name;
       name.title = tab.path;
 
-      const close = documen.createElement("button");
+      const close = document.createElement("button");
       close.type = "button";
       close.className = "editor-tab-close";
-      close.textContent = "x";
+      close.textContent = "×";
       close.title = `Close ${tab.name}`;
       close.setAttribute("aria-label", `Close ${tab.name}`);
+
       el.addEventListener("mousedown", (event) => {
         if (event.target !== close) event.preventDefault();
       });
@@ -76,6 +77,7 @@ export function startEditor(root, win, appmanager) {
       el.append(name, close);
       tabsEl.appendChild(el);
     }
+
     const add = document.createElement("button");
     add.type = "button";
     add.className = "editor-tab-add";
@@ -91,12 +93,12 @@ export function startEditor(root, win, appmanager) {
     if (tab) tab.content = text.value;
   }
 
-  function updateTile() {
+  function updateTitle() {
     const tab = activeTab();
     const dirty = tabs.some((item) => item.dirty);
 
     win.setTitle(
-      `${tab ? `${tab.dirty ? "● " : ""}${tab.name}` : "Editor"}${dirty && !tab?.dirty ? " •" : ""} -- VALCON`,
+      `${tab ? `${tab.dirty ? "● " : ""}${tab.name}` : "Editor"}${dirty && !tab?.dirty ? " •" : ""} — VALCON`,
     );
   }
 
@@ -132,6 +134,7 @@ export function startEditor(root, win, appmanager) {
     for (let i = 0; i < value.length; i++) {
       if (value.charCodeAt(i) === 10) count++;
     }
+
     return count;
   }
 
@@ -145,6 +148,7 @@ export function startEditor(root, win, appmanager) {
         (_, index) => index + 1,
       ).join("\n");
     }
+
     gutter.style.transform = `translateY(${-text.scrollTop}px)`;
   }
 
@@ -159,17 +163,17 @@ export function startEditor(root, win, appmanager) {
 
     const before = text.value.slice(0, text.selectionStart);
     const row = countLines(before);
-    const lastNewLine = before.lastIndexOf("\n");
-    const col = before.length - lastNewLine;
+    const lastNewline = before.lastIndexOf("\n");
+    const col = before.length - lastNewline;
 
     pathEl.textContent = tab.path;
-    metaEl.textContent = `Ln ${row}, col ${col} · ${(text.value.length / 1024).toFixed(1)} KB`;
+    metaEl.textContent = `Ln ${row}, Col ${col} · ${(text.value.length / 1024).toFixed(1)} KB`;
   }
 
   function markDirty() {
     const tab = activeTab();
-
     if (!tab) return;
+
     tab.content = text.value;
     tab.dirty = tab.content !== tab.savedContent;
 
@@ -181,6 +185,7 @@ export function startEditor(root, win, appmanager) {
   function showDialog(mode) {
     dialogMode = mode;
     dialogTitle.textContent = mode === "open" ? "Open file" : "Save file as";
+
     dialog.querySelector('[type="submit"]').textContent =
       mode === "open" ? "Open" : "Save";
 
@@ -219,12 +224,10 @@ export function startEditor(root, win, appmanager) {
       return;
     }
 
-    status("Opening...");
-
+    status("Opening…");
     const requestId = ++operationId;
 
     const response = await fs("read", { path });
-
     const result = response.result;
 
     if (requestId !== operationId || disposed) return;
@@ -232,7 +235,7 @@ export function startEditor(root, win, appmanager) {
     if (typeof result.content !== "string") {
       throw new FsError(
         "BAD_RESPONSE",
-        "The server did not return text content bruh.",
+        "The server did not return text content.",
         response.cwd,
       );
     }
@@ -242,7 +245,7 @@ export function startEditor(root, win, appmanager) {
     if (byteLength > MAX_BYTES) {
       throw new FsError(
         "TOO_LARGE",
-        "This editor limits files to 2 MB. Use a larger-file editor for this file",
+        "This editor limits files to 2 MB. Use a larger-file editor for this file.",
         response.cwd,
       );
     }
@@ -290,13 +293,14 @@ export function startEditor(root, win, appmanager) {
           syncStatus();
         }
       }
+
       renderTabs();
       updateDirtyUI();
       status("Tab closed");
     };
 
     if (tab.dirty) {
-      confirmDiscard(`${tab.name} has unsaved changes. Wanna discard?`, remove);
+      confirmDiscard(`${tab.name} has unsaved changes. Discard them?`, remove);
     } else {
       remove();
     }
@@ -307,6 +311,7 @@ export function startEditor(root, win, appmanager) {
       status("No file open");
       return;
     }
+
     const target = validatePath(asPath ?? tab.path);
 
     if (!tab.dirty && target === tab.path) {
@@ -315,10 +320,190 @@ export function startEditor(root, win, appmanager) {
     }
 
     const content = tab.content;
-    status("Saving...");
+    status("Saving…");
 
     try {
-      const { result }
+      const { result } = await fs("write", {
+        path: target,
+        content,
+        etag: overwrite ? null : tab.etag,
+      });
+
+      tab.path = target;
+      tab.name = basename(target);
+      tab.etag = result?.etag ?? null;
+      tab.savedContent = content;
+      tab.dirty = tab.content !== tab.savedContent;
+
+      renderTabs();
+      updateDirtyUI();
+      syncStatus();
+      status(tab.dirty ? "Saved snapshot; newer edits remain" : "Saved");
+    } catch (error) {
+      if (error instanceof FsError && error.code === "CONFLICT") {
+        confirmDiscard(
+          `${target} changed on the server. Overwrite the server version?`,
+          () => {
+            save(tab, target, true).catch(reportError);
+          },
+        );
+        return;
+      }
+
+      throw error;
     }
   }
+
+  function insertText(value) {
+    const start = text.selectionStart;
+    const end = text.selectionEnd;
+
+    text.setRangeText(value, start, end, "end");
+    text.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  root
+    .querySelector('[data-action="open"]')
+    .addEventListener("click", () => showDialog("open"));
+
+  root
+    .querySelector('[data-action="save"]')
+    .addEventListener("click", () => save().catch(reportError));
+
+  root
+    .querySelector('[data-action="save-as"]')
+    .addEventListener("click", () => showDialog("saveas"));
+
+  dialog.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+      const path = validatePath(dialogPath.value);
+
+      if (dialogMode === "open") {
+        await openPath(path);
+      } else {
+        const tab = activeTab();
+
+        if (!tab) {
+          throw new Error("Open a file before using Save As.");
+        }
+
+        await save(tab, path);
+      }
+
+      hideDialog();
+    } catch (error) {
+      dialogError.textContent = error.message;
+    }
+  });
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) hideDialog();
+  });
+
+  overlay.querySelector("[data-dismiss]").addEventListener("click", hideDialog);
+
+  text.addEventListener("input", markDirty);
+  text.addEventListener("scroll", syncGutter);
+  text.addEventListener("keyup", syncStatus);
+  text.addEventListener("click", syncStatus);
+  text.addEventListener("select", syncStatus);
+
+  text.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      insertText("  ");
+      return;
+    }
+
+    if (!(event.ctrlKey || event.metaKey)) return;
+
+    const key = event.key.toLowerCase();
+
+    if (key === "s" && event.shiftKey) {
+      event.preventDefault();
+      showDialog("saveas");
+    } else if (key === "s") {
+      event.preventDefault();
+      save().catch(reportError);
+    } else if (key === "w") {
+      event.preventDefault();
+
+      if (event.shiftKey) {
+        requestClose();
+      } else if (activeTab()) {
+        closeTab(activeId);
+      }
+    }
+  });
+
+  wrapBtn.addEventListener("click", () => {
+    wrap = !wrap;
+    text.classList.toggle("wrap", wrap);
+    wrapBtn.classList.toggle("active", wrap);
+    wrapBtn.setAttribute("aria-pressed", String(wrap));
+  });
+
+  const offOpen = bus.on("editor:open", async ({ path } = {}) => {
+    if (!path) return;
+
+    try {
+      await openPath(path);
+    } catch (error) {
+      reportError(error);
+    }
+  });
+
+  function hasDirtyTabs() {
+    commitActiveTab();
+    return tabs.some((tab) => tab.dirty);
+  }
+
+  function requestClose() {
+    if (!hasDirtyTabs()) {
+      win.close();
+      return;
+    }
+
+    confirmDiscard("The editor has unsaved changes. Close it anyway?", () => {
+      win.onclose = null;
+      win.close();
+    });
+  }
+
+  // AppManager must honor the onClose return value for this guard.
+  // See Chapter 5.
+  win.onclose = () => {
+    if (!hasDirtyTabs()) {
+      offOpen();
+      disposed = true;
+      return false;
+    }
+
+    confirmDiscard("The editor has unsaved changes. Close it anyway?", () => {
+      offOpen();
+      disposed = true;
+      win.onclose = null;
+      win.close();
+    });
+
+    return true;
+  };
+
+  text.disabled = true;
+  renderTabs();
+  syncGutter();
+  syncStatus();
+  updateTitle();
+
+  return {
+    openPath,
+    save,
+    requestClose,
+    dispose() {
+      disposed = true;
+      offOpen();
+    },
+  };
 }

@@ -97,9 +97,12 @@ export class AppManager {
 
     const size = this.clampToViewport(
       {
-        width: remembered?.width ?? app.width ?? `${get("windows.defaultWidth")}px`,
+        width:
+          remembered?.width ?? app.width ?? `${get("windows.defaultWidth")}px`,
         height:
-          remembered?.height ?? app.height ?? `${get("windows.defaultHeight")}px`,
+          remembered?.height ??
+          app.height ??
+          `${get("windows.defaultHeight")}px`,
       },
       { minwidth, minheight },
     );
@@ -119,10 +122,10 @@ export class AppManager {
 
     const lifecycle = (hook) => (payload) => {
       if (!ready) {
-        return;
+        return undefined;
       }
 
-      hook?.(content, win, payload);
+      return hook?.(content, win, payload);
     };
 
     win = new WinBox({
@@ -173,17 +176,24 @@ export class AppManager {
       },
 
       onclose: () => {
-        ready = false;
+        const result = lifecycle(app.onClose)?.({ force: false });
 
-        this.windows.delete(id);
+        if (result === true) {
+          return true;
+        }
 
         this.rememberWindow(id, win);
+        this.windows.delete(id);
 
-        lifecycle(app.onClose)?.();
+        content.dispatchEvent(new CustomEvent("windowclose"));
+        ready = false;
+
+        return false;
       },
     });
 
     ready = true;
+    this.windows.set(id, win);
 
     try {
       if (app.start) {
@@ -191,13 +201,12 @@ export class AppManager {
       }
     } catch (error) {
       console.error(`Failed to start app ${id}:`, error);
-
+      ready = false;
+      this.windows.delete(id);
       win.close();
 
       throw error;
     }
-
-    this.windows.set(id, win);
 
     return win;
   }
@@ -209,21 +218,22 @@ export class AppManager {
     const output = { ...size };
 
     for (const axis of ["width", "height"]) {
+      const viewport = axis === "width" ? rootWidth : rootHeight;
       const limit = limits[axis === "width" ? "minwidth" : "minheight"];
 
-      let value = toPixels(output[axis], axis === "width" ? rootWidth : rootHeight);
+      const requested = toPixels(output[axis], viewport);
+      const minimum = toPixels(limit, viewport);
 
-      if (!Number.isFinite(value)) {
-        continue;
-      }
+      if (!Number.isFinite(requested)) continue;
 
-      const min = toPixels(limit, axis === "width" ? rootWidth : rootHeight);
+      // A window cannot physically satisfy its minimum size when the
+      // viewport itself is smaller than that minimum.
+      const min = Number.isFinite(minimum)
+        ? Math.min(minimum, viewport * 0.98)
+        : 100;
 
-      if (Number.isFinite(min)) {
-        value = Math.max(min, value);
-      }
-
-      output[axis] = `${Math.round(Math.min(value, rootWidth * 0.98))}px`;
+      output[axis] =
+        `${Math.round(Math.max(min, Math.min(requested, viewport * 0.98)))}px`;
     }
 
     if (Number.isFinite(output.x) && Number.isFinite(output.y)) {
@@ -307,11 +317,9 @@ export class AppManager {
   }
 
   closeAll() {
-    for (const win of this.windows.values()) {
+    for (const win of [...this.windows.values()]) {
       win.close();
     }
-
-    this.windows.clear();
   }
 }
 
