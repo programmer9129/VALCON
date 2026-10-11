@@ -1355,7 +1355,8 @@ string BRIDGERequest(
 
 		if (parsed["code"])
 		{
-			return "Filesys error : " + parsed["code"].s();
+			return std::string("Filesys error : ") +
+				static_cast<std::string>(parsed["code"].s());
 		}
 
 		return "filesystem opperaton failed";
