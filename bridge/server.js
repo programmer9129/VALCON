@@ -358,11 +358,424 @@ async function fsGetChild(
     parentId,
     name
 ){
-    const {}
+    const { data, error } = await userSupabase
+        .from("fs_entries")
+        .select("*")
+        .eq("owner_id", user.id)
+        .eq("profile", profile)
+        .eq("parent_id", parentId)
+        .eq("name", name)
+        .maybeSingle();
 
+    if (error){
+        throw error;
+    }
+
+    return data || null;
 }
 
+async function fsResolveEntry(
+    userSupabase,
+    user,
+    profile,
+    root,
+    relativePath
+){
+    const cleanPath = fsCleanPath(relativePath);
 
+    if (!cleanPath)
+    {
+        return root;
+    }
+
+    const parts = cleanPath.split("/");
+    let current = root;
+
+    for (const part of parts){
+        if (current.kind !== "dir"){
+            fsRaise(
+                "NOT_DIRECTORY",
+                `"${current.name}" is not a directory`
+            );
+        }
+
+        const child = await fsGetChild(
+            userSupabase,
+            user,
+            profile,
+            current.id,
+            parts
+        );
+
+        if (!child){
+            fsRaise("NOT_FOUND", `ENTRY NOT FOUND: ${part}`);
+        }
+
+        current = child;
+    }
+    return current;
+}
+
+async function fsInsertEntry(
+    userSupabase,
+    user,
+    profile,
+    parentId,
+    name,
+    kind,
+    storageKey = null
+) {
+    const { data, error } = await userSupabase
+        .from("fs_entries")
+        .insert({
+            owner_id: user.id,
+            profile,
+            parent_id: parentId,
+            name,
+            kind,
+            storage_key: storageKey
+        })
+        .select("*")
+        .single();
+
+    if (error) {
+        fsCheckDatabaseError(error);
+    }
+
+    return data;
+}
+
+async function fsDownloadBuffer(userSupabase, entry) {
+    if (entry.kind !== "file" || !entry.storage_key) {
+        fsRaise("IS_DIRECTORY", "The entry is not a readable file.");
+    }
+
+    const { data, error } = await userSupabase.storage
+        .from(BUCKET_NAME)
+        .download(entry.storage_key);
+
+    if (error) {
+        throw error;
+    }
+
+    return Buffer.from(await data.arrayBuffer());
+}
+
+async function fsCreateFile(
+    userSupabase,
+    user,
+    profile,
+    parentId,
+    name,
+    contentBuffer = Buffer.alloc(0)
+){
+    const storageKey = `${user.id}/${randomUUID()}`;
+
+    const entry = await fsInsertEntry(
+        userSupabase,
+        user,
+        profile,
+        parentId,
+        name,
+        "file",
+        storageKey
+    );
+
+
+    const { error } = await userSupabase.storage
+        .from(BUCKET_NAME)
+        .upload(storageKey, contentBuffer, {
+           contentType: "text/plain; charset=utf-8",
+           upsert: false
+        });
+
+    if(error){
+        await userSupabase
+            .from("fs_entries")
+            .delete()
+            .eq("owner_id", user.id)
+            .eq("profile", profile)
+            .eq("id", entry.id);
+
+         throw error;
+    }
+
+    return entry;
+}
+
+async function fsUploadBuffer(userSupabase, entry, buffer) {
+    if (entry.kind !== "file" || !entry.storage_key){
+        fsRaise("IS_DIRECTORY", "The entry is not a file.");
+    }
+
+    const { error } = await userSupabase.storage
+        .from(BUCKET_NAME)
+        .upload(entry.storage_key, buffer, {
+            contentType: "text/plain; charset=utf-8",
+            upsert: true
+        });
+
+    if (error){
+        throw error;
+    }
+}
+
+async function fsCollectSubtree(
+    userSupabase,
+    user,
+    profile,
+    entry,
+    relativePath,
+    collected = []
+){
+    if (collected.length >= 5000){
+        fsRaise(
+            "TOO_MANY_ENTRIES",
+            "The operation exceeds the filesystem entry limit "
+        );
+    }
+
+    collected.push({
+        ...entry,
+        relativePath
+    });
+
+    if (entry.kind === "dir"){
+        const children = await fsGetChildren(
+            userSupabase,
+            user,
+            profile,
+            entry.id
+        );
+
+        for (const child of children){
+            const childPath = relativePath ? `${relativePath}/${child.name}` : child.name;
+
+            await fsCollectSubtree(
+                userSupabase ,
+                user,
+                profile,
+                child,
+                childPath,
+                collected
+            );
+        }
+    }
+
+    return collected;
+}
+
+async function fsRemoveSubtree(
+    userSupabase,
+    user,
+    profile,
+    entry,
+    relativePath
+){
+
+    const entries = await fsCollectSubtree(
+        userSupabase,
+        user,
+        profile,
+        entry,
+        relativePath
+    );
+
+    const keys = entries
+        .filter(item => item.kind === "file" && item.storage_key)
+        .map(item => item.storage_key);
+
+    for (let i = 0; i< keys.length; i+= 100)
+    {
+        const {error}  = await userSupabase.storage
+            .from(BUCKET_NAME)
+            .remove(keys.slice(i, i + 100));
+
+        if (error){
+            throw error;
+        }
+    }
+
+    for (const item of entries.reverse()){
+        const { error } = await userSupabase
+            .from("fs_entries")
+            .delete()
+            .eq("owner_id", user.id)
+            .eq("profile", profile)
+            .eq("id", entry.id);
+
+        if (error){
+            throw error;
+        }
+    }
+}
+
+async function fsCloneEntry(
+    userSupabase,
+    user,
+    profile,
+    source,
+    destinationParentId,
+    newName,
+    destinationPath
+){
+    if (source.kind === "file") {
+        const buffer = await fsDownloadBuffer(userSupabase , source);
+
+        return fsCreateFile(
+            userSupabase,
+            user,
+            profile,
+            destinationParentId,
+            newName,
+            buffer
+        );
+    }
+
+    const copy = await fsInsertEntry(
+        userSupabase,
+        user,
+        profile,
+        destinationParentId,
+        newName,
+        "dir",
+        null
+    );
+
+    try {
+        const children = await fsGetChildren(
+            userSupabase,
+            user,
+            profile,
+            source.id
+        );
+
+        for (const child of children){
+            await fsCloneEntry(
+                userSupabase,
+                user,
+                profile,
+                child,
+                copy.id,
+                child.name,
+                destinationPath ? `${destinationPath}/${child.name}` : child.name
+            );
+        }
+    }catch (error) {
+        try{
+            await fsRemoveSubtree(
+                userSupabase,
+                user,
+                profile,
+                copy,
+                destinationPath
+            );
+        }catch {
+
+        }
+
+        throw error;
+    }
+    return copy;
+}
+
+function fsGlobToRegex(glob){
+    let result = "";
+
+    for (let i = 0; i<glob.length; i++){
+        const char = glob[i];
+
+        if(char === "*" && glob[i + 1] === "*"){
+            if (glob[i + 2] === "/"){
+                result += "(?:.*/)?";
+                i++;
+            }else {
+                result += ".*";
+                i++;
+            }
+        }else if (char === "*")
+        {
+            result += "[^/]*";
+        } else if (char === "?"){
+            result += "[^/]";
+        } else {
+            result += char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        }
+    }
+    return new RegExp(`^${result}$`, "i");
+}
+
+async function fsBuildTreeMode(
+    userSupabase,
+    user,
+    profile,
+    entry,
+    depth = 0
+){
+    if (depth > 64){
+        fsRaise(
+            "TOO_MANY_ENTRIES",
+            "maximum tree depth exceeded."
+        );
+    }
+
+    const children = entry.kind === "dir"
+    ? await fsGetChildren(
+        userSupabase,
+            user,
+            profile,
+            entry.id,
+    ) : [];
+
+    const nodes = [];
+
+    for (const child of children){
+        nodes.push(
+            await fsBuildTreeMode(
+                userSupabase,
+                user,
+                profile,
+                child,
+                depth + 1
+            )
+        );
+    }
+
+    return {
+        name: entry.name,
+        kind: entry.kind,
+        children: nodes
+    };
+}
+
+function fsRenderTreeChildren(children, prefix = ""){
+    let output = "";
+
+    children.forEach((child, index) => {
+        const isLast = index === children.length -1;
+
+        output += prefix + (isLast ? " |_____ " : "|----- ") + child.name + "\n";
+
+        if (child.kind === "dir" && child.children.length > 0){
+            output += fsRenderTreeChildren(
+                child.children,
+                prefix + (isLast ? "     " : "|     ")
+            );
+        }
+    });
+
+    return output;
+}
+
+function fsRenderTree(node, rootLabel) {
+    let output = `${rootLabel}\n`;
+
+    if (node.children.length > 0){
+        output += "|\n";
+        output += fsRenderTreeChildren(node.children);
+    }
+    return output;
+}
 
 async function findOrCreateFsRoot(userSupabase, user,profile){
     const selectRoot = () => {
