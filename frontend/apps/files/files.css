@@ -2,7 +2,8 @@
   --files-bg: #17191f;
   --files-panel: #1d2028;
   --files-hover: #292e39;
-  --files-text: #e5efeb;
+  --files-border: #303440;
+  --files-text: #e5e7eb;
   --files-muted: #969eae;
   --files-accent: #8ab4f8;
   --files-danger: #f28b82;
@@ -42,7 +43,6 @@
 .files-toolbar {
   display: flex;
   align-items: center;
-
   gap: 12px;
   padding: 12px;
   border-bottom: 1px solid var(--files-border);
@@ -115,7 +115,7 @@
 
 .files-actions {
   display: flex;
-  flex-wrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   padding: 10px 12px;
@@ -179,4 +179,221 @@
 
 .files-sidebar-heading {
   padding: 4px 8px 10px;
+  color: var(--files-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.files-location {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+.files-location:hover,
+.files-location.active {
+  background: var(--files-hover);
+}
+
+.files-location.active {
+  color: var(--files-accent);
+}
+
+.files-location-icon {
+  width: 17px;
+  text-align: center;
+  font-size: 17px;
+}
+
+.files-content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.files-list-header,
+.files-entry {
+  display: grid;
+  grid-template-columns: minmax(120px, 2.2fr) minmax(60px, 0.8fr) minmax(
+      65px,
+      0.8fr
+    ) minmax(100px, 1.2fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.files-list-header {
+  flex-shrink: 0;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--files-border);
+  color: var(--files-muted);
+  font-size: 11px;
+}
+
+.files-list {
+  flex: 1;
+  min-height: 0;
+  padding: 5px;
+  overflow: auto;
+}
+
+.files-entry {
+  width: 100%;
+  min-height: 39px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--files-text);
+  text-align: left;
+  cursor: default;
+}
+
+.files-entry:hover {
+  background: var(--files-hover);
+}
+
+.files-entry.selected {
+  border-color: #405b7c;
+  background: #26364b;
+}
+
+.files-entry-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.files-entry-icon {
+  width: 19px;
+  flex-shrink: 0;
+  color: var(--files-accent);
+  text-align: center;
+  font-weight: 700;
+}
+
+.files-entry-label,
+.files-entry-type,
+.files-entry-size,
+.files-entry-date {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files-entry-type,
+.files-entry-size,
+.files-entry-date {
+  color: var(--files-muted);
+  font-size: 11px;
+}
+
+.files-empty {
+  position: absolute;
+  inset: 44px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.files-empty[hidden],
+.files-error[hidden],
+.files-loading[hidden] {
+  display: none;
+}
+
+.files-empty-icon {
+  margin-bottom: 10px;
+  color: var(--files-muted);
+  font-size: 34px;
+}
+
+.files-empty p {
+  color: var(--files-muted);
+  line-height: 1.5;
+}
+
+.files-error {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  z-index: 2;
+  padding: 12px;
+  border: 1px solid #754943;
+  border-radius: 7px;
+  background: #382522;
+  color: #ffd7d2;
+  overflow-wrap: anywhere;
+}
+
+.files-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 12px 16px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--files-border);
+  border-radius: 7px;
+  background: var(--files-panel);
+  color: var(--files-muted);
+}
+
+.files-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 29px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--files-border);
+  background: var(--files-panel);
+  color: var(--files-muted);
+  font-size: 11px;
+}
+
+.files-current-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .files-sidebar {
+    width: 112px;
+  }
+
+  .files-list-header,
+  .files-entry {
+    grid-template-columns: minmax(100px, 2fr) 55px 60px;
+  }
+
+  .files-list-header > :nth-child(4),
+  .files-entry > :nth-child(4) {
+    display: none;
+  }
+
+  .files-toolbar {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .files-actions {
+    padding: 8px;
+  }
 }

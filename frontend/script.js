@@ -9,11 +9,15 @@ import terminalMarkup from "./apps/terminal/terminal.html?raw";
 import settingsMarkup from "./apps/settings/settings.html?raw";
 import musicMarkup from "./apps/music/music.html?raw";
 import editorMarkup from "./apps/editor/editor.html?raw";
+import filesMarkup from "./apps/files/files.html?raw";
+
+import "./apps/files/files.css";
 
 import { startMusic } from "./apps/music/music.js";
 import { startTerminal } from "./apps/terminal/terminal.js";
 import { startSettings } from "./apps/settings/settings.js";
 import { startEditor } from "./apps/editor/editor.js";
+import { startFiles } from "./apps/files/files.js";
 
 import { bootAuth } from "./auth.js";
 
@@ -128,6 +132,17 @@ async function boot() {
     single: true,
     start: startEditor,
   });
+  appmanager.register({
+    id: "files",
+    title: "Files",
+    html: filesMarkup,
+    width: "850px",
+    height: "560px",
+    minwidth: "500px",
+    minheight: "300px",
+    single: true,
+    start: startFiles,
+  });
 
   const launch = (id) => {
     const win = document.getElementById(`${id}App`);
@@ -143,6 +158,7 @@ async function boot() {
   launch("settings");
   launch("music");
   launch("editor");
+  launch("files");
 
   applyDockSettings(dock);
 
