@@ -2002,83 +2002,72 @@ app.post("/json", async (req, res) => {
 
 app.post("/auth/register", async (req, res) => {
     try {
-        if (!adminSupabase) {
-            return res.status(503).json({
-                ok: false,
-                message: "Account registration is not configured."
-            });
-        }
-
-        const username =
-            typeof req.body?.username === "string"
-                ? req.body.username.trim().toLowerCase()
-                : "";
+        const username = String(req.body?.username || "")
+            .trim()
+            .toLowerCase();
 
         const password = req.body?.password;
 
         if (!/^[a-z0-9_-]{2,64}$/.test(username)) {
             return res.status(400).json({
                 ok: false,
-                message: "Use 2–64 letters, numbers, underscores or hyphens for your username."
+                message: "Username must contain 2–64 letters, numbers, underscores or hyphens."
             });
         }
 
-        if (
-            typeof password !== "string" ||
-            password.length < 8 ||
-            password.length > 128
-        ) {
+        if (typeof password !== "string" || password.length < 8) {
             return res.status(400).json({
                 ok: false,
-                message: "Use a password between 8 and 128 characters."
+                message: "Password must contain at least 8 characters."
+            });
+        }
+
+        if (!process.env.SUPABASE_URL ||
+            !process.env.SUPABASE_SECRET_KEY) {
+            return res.status(500).json({
+                ok: false,
+                message: "Server-side Supabase configuration is missing."
             });
         }
 
         const email = `${username}@accounts.valcon.invalid`;
 
-        const { data, error } =
-            await adminSupabase.auth.admin.createUser({
-                email,
-                password,
-                email_confirm: true,
-                user_metadata: {
-                    username,
-                    fs_profile: username,
-                    display_name: username,
-                    bio: ""
-                }
-            });
+        const { data, error } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: {
+                username,
+                fs_profile: username
+            }
+        });
 
         if (error) {
-            if (
-                error.code === "email_exists" ||
-                error.code === "user_already_exists" ||
-                /already (registered|exists)/i.test(error.message || "")
-            ) {
-                return res.status(409).json({
-                    ok: false,
-                    message: "That username is already registered."
-                });
-            }
+            const status = /already|registered|exists/i.test(error.message)
+                ? 409
+                : 400;
 
-            console.error("VALCON REGISTRATION ERROR:", error);
-
-            return res.status(400).json({
+            return res.status(status).json({
                 ok: false,
-                message: "Account registration failed. Check the account settings and try again."
+                message: status === 409
+                    ? "That username is already registered."
+                    : error.message
             });
         }
 
         return res.status(201).json({
             ok: true,
-            userId: data.user.id
+            user: {
+                id: data.user.id,
+                username
+            }
         });
     } catch (error) {
-        console.error("VALCON REGISTRATION ERROR:", error);
+        console.error("Registration error:", error);
 
         return res.status(500).json({
             ok: false,
-            message: "Account registration failed."
+            message: "Registration failed due to a server error."
         });
     }
 });
