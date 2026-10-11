@@ -1,5 +1,3 @@
-// frontend/apps/terminal/terminal.js
-
 import "./terminal.css";
 
 import { get, on } from "../../core/settings-store.js";
@@ -9,6 +7,7 @@ import { getAuth } from "../../auth.js";
 const COMMAND_ENDPOINT = "/json";
 const PROMPT = "valcon $ ";
 const DEFAULT_SCROLLBACK = 1000;
+const SCROLL_BOTTOM_THRESHOLD = 40;
 
 export function startTerminal(root) {
   const terminal = root.matches(".terminal")
@@ -16,20 +15,23 @@ export function startTerminal(root) {
       : root.querySelector(".terminal");
 
   if (!terminal) {
-    console.error("Terminal markup is missing a .terminal root");
+    console.error("Terminal markup is missing a .terminal root.");
     return;
   }
 
   const output = terminal.querySelector(".output");
 
   if (!output) {
-    console.error("Terminal markup is missing an .output element");
+    console.error("Terminal markup is missing an .output element.");
     return;
   }
 
   let processing = false;
   let currentPath = "";
   let disposed = false;
+
+  // Prevent browser scroll anchoring from fighting our scroll handling.
+  terminal.style.overflowAnchor = "none";
 
   function applySettings() {
     const theme = get("terminal.theme");
@@ -71,10 +73,21 @@ export function startTerminal(root) {
     terminal.classList.toggle("cursor-blink", cursorBlink);
   }
 
-  function scroll() {
+  // Only follow new output when the user is already near the bottom.
+  function isNearBottom() {
+    const distance =
+        terminal.scrollHeight -
+        terminal.scrollTop -
+        terminal.clientHeight;
+
+    return distance <= SCROLL_BOTTOM_THRESHOLD;
+  }
+
+  function scrollToBottom() {
     terminal.scrollTop = terminal.scrollHeight;
   }
 
+  // Remove old output without unnecessarily jumping the user's viewport.
   function trimScrollback() {
     const configured = Number(get("terminal.scrollback"));
 
@@ -83,8 +96,44 @@ export function startTerminal(root) {
             ? Math.floor(configured)
             : DEFAULT_SCROLLBACK;
 
+    let removedHeight = 0;
+
     while (output.children.length > limit) {
-      output.firstElementChild?.remove();
+      const first = output.firstElementChild;
+
+      if (!first) {
+        break;
+      }
+
+      const style = getComputedStyle(first);
+
+      removedHeight +=
+          first.getBoundingClientRect().height +
+          (parseFloat(style.marginTop) || 0) +
+          (parseFloat(style.marginBottom) || 0);
+
+      first.remove();
+    }
+
+    return removedHeight;
+  }
+
+  function appendOutput(line) {
+    const shouldFollow = isNearBottom();
+    const previousScrollTop = terminal.scrollTop;
+
+    output.appendChild(line);
+
+    const removedHeight = trimScrollback();
+
+    if (shouldFollow) {
+      scrollToBottom();
+    } else if (removedHeight > 0) {
+      // Preserve the visible content when old lines are removed above it.
+      terminal.scrollTop = Math.max(
+          0,
+          previousScrollTop - removedHeight,
+      );
     }
   }
 
@@ -94,10 +143,7 @@ export function startTerminal(root) {
     line.className = "line";
     line.textContent = String(value ?? "");
 
-    output.appendChild(line);
-
-    trimScrollback();
-    scroll();
+    appendOutput(line);
   }
 
   function echo(command) {
@@ -109,10 +155,8 @@ export function startTerminal(root) {
     prompt.textContent = PROMPT;
 
     line.append(prompt, document.createTextNode(command));
-    output.appendChild(line);
 
-    trimScrollback();
-    scroll();
+    appendOutput(line);
   }
 
   function normalizePath(path) {
@@ -212,12 +256,24 @@ export function startTerminal(root) {
   prompt.textContent = PROMPT;
 
   function sync() {
+    const shouldFollow = isNearBottom();
     const position = input.selectionStart ?? input.value.length;
 
     typed.textContent = input.value.slice(0, position);
     after.textContent = input.value.slice(position);
 
-    scroll();
+    // Typing must not pull the user back down after scrolling upward.
+    if (shouldFollow) {
+      scrollToBottom();
+    }
+  }
+
+  function focusInput() {
+    if (disposed || input.disabled) {
+      return;
+    }
+
+    input.focus({ preventScroll: true });
   }
 
   async function submit() {
@@ -232,6 +288,7 @@ export function startTerminal(root) {
 
     if (command === "clear") {
       output.replaceChildren();
+      scrollToBottom();
     } else {
       echo(command);
 
@@ -252,14 +309,13 @@ export function startTerminal(root) {
     processing = false;
     input.disabled = false;
 
-    if (!disposed) {
-      input.focus();
-    }
+    focusInput();
   }
 
   input.addEventListener("input", sync);
   input.addEventListener("click", sync);
   input.addEventListener("keyup", sync);
+  input.addEventListener("select", sync);
 
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -272,22 +328,21 @@ export function startTerminal(root) {
   terminal.appendChild(row);
 
   applySettings();
-  scroll();
-  input.focus();
+  scrollToBottom();
+  focusInput();
 
-  const focusHandler = () => {
-    if (!disposed && !input.disabled) {
-      input.focus();
-    }
-  };
+  function handleWindowFocus() {
+    focusInput();
+  }
 
-  terminal.addEventListener("mousedown", () => {
+  function handleTerminalMouseDown() {
     if (!get("terminal.copyOnSelect")) {
-      input.focus();
+      focusInput();
     }
-  });
+  }
 
-  window.addEventListener("focus", focusHandler);
+  terminal.addEventListener("mousedown", handleTerminalMouseDown);
+  window.addEventListener("focus", handleWindowFocus);
 
   const unsubscribe = [
     on("terminal.theme", applySettings),
@@ -303,10 +358,11 @@ export function startTerminal(root) {
   return {
     clear() {
       output.replaceChildren();
+      scrollToBottom();
     },
 
     focus() {
-      input.focus();
+      focusInput();
     },
 
     getPath() {
@@ -314,15 +370,28 @@ export function startTerminal(root) {
     },
 
     async execute(command) {
+      if (processing || disposed) {
+        return;
+      }
+
       input.value = String(command || "");
       sync();
+
       await submit();
     },
 
     dispose() {
+      if (disposed) {
+        return;
+      }
+
       disposed = true;
 
-      window.removeEventListener("focus", focusHandler);
+      window.removeEventListener("focus", handleWindowFocus);
+      terminal.removeEventListener(
+          "mousedown",
+          handleTerminalMouseDown,
+      );
 
       for (const unsubscribeHandler of unsubscribe) {
         unsubscribeHandler();
