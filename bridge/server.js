@@ -495,7 +495,7 @@ async function fsCreateFile(
             .delete()
             .eq("owner_id", user.id)
             .eq("profile", profile)
-            .eq("id", entry.id);
+            .eq("id", entry["id"]);
 
          throw error;
     }
