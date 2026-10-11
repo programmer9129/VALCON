@@ -150,24 +150,38 @@
   }
 }
 
-/* Remove the extra scrollbar from the WinBox window */
+/* Keep the terminal window bounded */
 .winbox:has(.terminal) .wb-body {
+  position: relative !important;
   overflow: hidden !important;
   min-width: 0;
   min-height: 0;
 }
 
-/* Keep the terminal's own scrollbar */
+/* Keep all scrolling inside the terminal itself */
 .winbox:has(.terminal) .terminal {
+  position: absolute;
+  inset: 0;
+
   box-sizing: border-box;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+
   min-width: 0;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--terminal-scrollbar) transparent;
+}
+
+/* Keep terminal output inside the scrolling area */
+.winbox:has(.terminal) .terminal .output {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
