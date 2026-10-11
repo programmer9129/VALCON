@@ -1016,7 +1016,7 @@ export function startMusic(win) {
           id="musicPrev"
           title="Previous track"
           appearance="plain"
-          size="small"
+          size="s"
         >
           <wa-icon name="backward-step"></wa-icon>
         </wa-button>
@@ -1025,7 +1025,7 @@ export function startMusic(win) {
           id="musicPlay"
           class="music-control-main"
           title="Play"
-          size="medium"
+          size="m"
         >
           <wa-icon name="play"></wa-icon>
         </wa-button>
@@ -1034,7 +1034,7 @@ export function startMusic(win) {
           id="musicNext"
           title="Next track"
           appearance="plain"
-          size="small"
+          size="s"
         >
           <wa-icon name="forward-step"></wa-icon>
         </wa-button>

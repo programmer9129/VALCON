@@ -2,7 +2,9 @@ import { fs } from "../../fs/client.js";
 import { bus } from "../../core/bus.js";
 
 export function startFiles(content, win, manager) {
-  const root = content.querySelector(".files-app");
+  const root = content.matches(".files-app")
+    ? content
+    : content.querySelector(".files-app");
 
   if (!root) {
     throw new Error("Files app markup was not mounted correctly.");
