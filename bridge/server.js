@@ -1970,7 +1970,15 @@ app.post("/json", async (req, res) => {
 
         try {
             data = JSON.parse(text);
-        } catch {
+        } catch (error) {
+            console.error("C++ BACKEND INVALID JSON:", {
+                command: body.command,
+                status: response.status,
+                contentType: response.headers.get("content-type"),
+                responseBody: text.slice(0, 3000),
+                parseError: error.message
+            });
+
             return res.status(502).json({
                 success: false,
                 error: "C++ backend returned invalid JSON."
