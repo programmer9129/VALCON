@@ -105,24 +105,100 @@ export function startTerminal(root) {
     }
   }
 
+  // Extract readable output from the server response.
+// Never stringify or display the complete JSON response.
+  function getHumanOutput(data) {
+    let value =
+        data?.output ??
+        data?.result?.output ??
+        data?.result?.content ??
+        data?.message ??
+        "";
+
+    if (typeof value !== "string") {
+      return "";
+    }
+
+    // The C++ backend adds three spaces before command output.
+    return value.replace(/^ {3}/, "");
+  }
+
+
+// Format the `ls` command as a readable directory listing.
+  function formatLsOutput(value) {
+    const raw = String(value ?? "").trim();
+
+    if (!raw || raw === "(empty directory)") {
+      return "(empty directory)";
+    }
+
+    const entries = [];
+
+    // Supports both newline-separated and space-separated entries.
+    const pattern =
+        /\[(DIR|FILE)\]\s*(.*?)(?=\s*\[(?:DIR|FILE)\]\s*|$)/gs;
+
+    for (const match of raw.matchAll(pattern)) {
+      const kind = match[1];
+      const name = match[2].replace(/\s+/g, " ").trim();
+
+      if (name) {
+        entries.push({ kind, name });
+      }
+    }
+
+    // If the backend returns another output format, preserve it.
+    if (entries.length === 0) {
+      return raw;
+    }
+
+    // Show directories first, then files, alphabetically.
+    entries.sort((a, b) => {
+      if (a.kind !== b.kind) {
+        return a.kind === "DIR" ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base"
+      });
+    });
+
+    const lines = [
+      `Directory contents (${entries.length} entries):`
+    ];
+
+    entries.forEach((entry, index) => {
+      const last = index === entries.length - 1;
+      const branch = last ? "└──" : "├──";
+
+      if (entry.kind === "DIR") {
+        lines.push(`${branch} 📁 ${entry.name}/`);
+      } else {
+        lines.push(`${branch} 📄 ${entry.name}`);
+      }
+    });
+
+    return lines.join("\n");
+  }
+
+
+// Print readable text while preserving line breaks.
   function print(value) {
-    let text = String(value ?? "");
+    const text = String(value ?? "")
+        .replace(/\r\n?/g, "\n");
 
-    text = text.replace(
-        /\s+(?=\[(?:DIR|FILE)\]\s)/g,
-        "\n"
-    );
+    for (const rowText of text.split("\n")) {
+      const line = document.createElement("div");
 
-    const line = document.createElement("div");
-    line.className = "line";
-    line.textContent = text;
+      line.className = "line";
+      line.textContent = rowText;
 
-    output.appendChild(line);
+      output.appendChild(line);
+    }
 
     trimScrollback();
     scroll();
   }
-
   function echo(command) {
     const line = document.createElement("div");
     const promptEl = document.createElement("span");
@@ -236,10 +312,7 @@ export function startTerminal(root) {
 
   prompt.textContent = PROMPT;
 
-  /*
-   * Synchronize the visible input with the real input element.
-   * Keep the terminal automatically scrolled to the bottom.
-   */
+
   function sync() {
     const position = input.selectionStart ?? input.value.length;
 
@@ -317,17 +390,7 @@ export function startTerminal(root) {
 
   window.addEventListener("focus", focusHandler);
 
-  /*
-   * Give the terminal keyboard control back when it is clicked.
-   *
-   * This must be a click handler, not mousedown: the browser moves focus
-   * to the clicked element (or the page body) AFTER mousedown handlers
-   * run, which undoes any input.focus() called there. By click time the
-   * browser has finished, so our focus() call sticks.
-   *
-   * If the user is selecting text inside the terminal we leave focus
-   * alone, so selecting and copying still works.
-   */
+
   const clickHandler = () => {
     if (disposed || input.disabled) {
       return;
