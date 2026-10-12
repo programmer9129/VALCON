@@ -214,6 +214,21 @@ export function startTerminal(root) {
     scroll();
   }
 
+  // Placeholder shown while a command is in flight. It is removed and
+  // replaced by the real output once the backend responds.
+  function showWaiting() {
+    const line = document.createElement("div");
+
+    line.className = "line waiting";
+    line.textContent = "waiting...";
+    output.appendChild(line);
+
+    trimScrollback();
+    scroll();
+
+    return line;
+  }
+
   function normalizePath(path) {
     return String(path || "")
         .replace(/\\/g, "/")
@@ -332,10 +347,17 @@ export function startTerminal(root) {
     processing = true;
     input.disabled = true;
 
+    // Clear the live input right away so the typed command is not
+    // shown a second time (the echoed line is the single source of truth).
+    input.value = "";
+    sync();
+
     if (command === "clear") {
       output.replaceChildren();
     } else {
       echo(command);
+
+      const pending = showWaiting();
 
       try {
         const data = await sendCommand(command);
@@ -346,16 +368,16 @@ export function startTerminal(root) {
           text = formatLsOutput(text);
         }
 
+        pending.remove();
+
         if (text !== "") {
           print(text);
         }
       } catch (error) {
+        pending.remove();
         print(`error: ${error.message || "Command failed."}`);
       }
     }
-
-    input.value = "";
-    sync();
 
     processing = false;
     input.disabled = false;

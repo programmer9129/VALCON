@@ -74,6 +74,11 @@
   overflow-wrap: anywhere;
 }
 
+.terminal .waiting {
+  color: var(--terminal-after);
+  font-style: italic;
+}
+
 .terminal .input {
   display: flex;
   align-items: baseline;
