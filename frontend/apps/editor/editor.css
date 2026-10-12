@@ -120,6 +120,8 @@
 
 .editor-canvas {
   display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
   flex: 1;
   min-width: 0;
   min-height: 0;
