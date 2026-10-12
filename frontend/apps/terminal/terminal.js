@@ -106,10 +106,16 @@ export function startTerminal(root) {
   }
 
   function print(value) {
-    const line = document.createElement("div");
+    let text = String(value ?? "");
 
+    text = text.replace(
+        /\s+(?=\[(?:DIR|FILE)\]\s)/g,
+        "\n"
+    );
+
+    const line = document.createElement("div");
     line.className = "line";
-    line.textContent = String(value ?? "");
+    line.textContent = text;
 
     output.appendChild(line);
 
