@@ -621,15 +621,11 @@ string processstrings_profile(
 			"deldir : <path>                       Delete a directory\n"
 			"deldir : <path> --yes                 Confirm recursize deletion\n"
 			"ls                                    List directory contents\n"
-			"stat : <path>                         Show file information\n"
 			"dir/rename : <new-name>               Rename current directory\n"
 			"rename : <new-name>                   Rename current directory\n"
 			"move : <source> <dest>                Move an enty\n"
 			"copy : <source> <dest>                Copy an entry\n"
-			"tree                                  Display directory tree\n"
-			"du                                    Show current directory size\n"
 			"find : <glob>                         Find matching entries\n"
-			"grep : <patern>                       Search text files\n"
 			"calculate <expression>=               Calculate an expression";
 	}
 
@@ -1008,72 +1004,6 @@ string processstrings_profile(
 		);
 	}
 
-	if (command.rfind("stat : ", 0) == 0)
-	{
-		string argument;
-		if (!parse_one(command.substr(7), argument))
-		{
-			return "Use: stat: <path>";
-		}
-
-		if (!validrelativepath(argument))
-		{
-			return "Invalid path";
-		}
-
-		string target = resolve_path(argument);
-
-		return BRIDGERequest(
-			token,
-			profile,
-			current_path,
-			"stat",
-			target
-		);
-	}
-
-	if (command == "tree")
-	{
-		return BRIDGERequest(
-			token,
-			profile,
-			current_path,
-			"tree"
-		);
-	}
-
-	if (command == "du")
-	{
-		return BRIDGERequest(
-			token,
-			profile,
-			current_path,
-			"du"
-		);
-	}
-
-	if (command.rfind("grep : ", 0) == 0)
-	{
-		string pattern;
-
-		if (!parse_one(command.substr(7), pattern) || pattern.empty())
-		{
-			return " USe: grep: <pattern>";
-		}
-
-		return BRIDGERequest(
-			token,
-			profile,
-			current_path,
-			"grep",
-			"",
-			"",
-			"",
-			"",
-			pattern
-		);
-	}
-
 	if (command.rfind("find : ", 0) == 0)
 	{
 		string pattern;
@@ -1197,7 +1127,6 @@ string BRIDGERequest(
 		op == "delete_file" ||
 		op == "deldir" ||
 		op == "rename" ||
-		op == "stat" ||
 		op == "move" ||
 		op == "copy"
 		)
