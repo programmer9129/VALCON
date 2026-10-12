@@ -340,8 +340,14 @@ export function startTerminal(root) {
       try {
         const data = await sendCommand(command);
 
-        if (data.output !== undefined && data.output !== null) {
-          print(data.output);
+        let text = getHumanOutput(data);
+
+        if (/^\s*(?:ls|list)\s*$/i.test(command)) {
+          text = formatLsOutput(text);
+        }
+
+        if (text !== "") {
+          print(text);
         }
       } catch (error) {
         print(`error: ${error.message || "Command failed."}`);
