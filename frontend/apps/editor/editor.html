@@ -10,10 +10,6 @@
   <div class="editor-tabs" role="tablist"></div>
 
   <div class="editor-canvas">
-    <div class="editor-gutter" aria-hidden="true">
-      <div class="editor-gutter-inner">1</div>
-    </div>
-
     <textarea
       class="editor-text"
       spellcheck="false"
@@ -50,6 +46,14 @@
         autocomplete="off"
         required
       />
+
+      <div class="editor-picker">
+        <div class="editor-picker-bar">
+          <button type="button" class="editor-picker-up" disabled>Up</button>
+          <span class="editor-picker-path">/</span>
+        </div>
+        <div class="editor-picker-list" role="listbox" aria-label="Files"></div>
+      </div>
 
       <p class="editor-dialog-error" role="alert"></p>
 

@@ -128,24 +128,6 @@
   overflow: hidden;
 }
 
-.editor-gutter {
-  flex: 0 0 48px;
-  padding: var(--editor-pad) 9px;
-  overflow: hidden;
-  text-align: right;
-  white-space: pre;
-  user-select: none;
-  color: var(--muted, #7a8494);
-  background: var(--surface, #11151d);
-  border-right: 1px solid var(--border, #303744);
-  font: inherit;
-  line-height: var(--editor-line-height);
-}
-
-.editor-gutter-inner {
-  will-change: transform;
-}
-
 .editor-text {
   flex: 1;
   width: 0;
@@ -250,6 +232,87 @@
   color: var(--text, #d8dee9);
 }
 
+.editor-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  border: 1px solid var(--border, #303744);
+  border-radius: 5px;
+  background: var(--bg, #0b0e14);
+  overflow: hidden;
+}
+
+.editor-picker[hidden] {
+  display: none;
+}
+
+.editor-picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border, #303744);
+  background: var(--surface, #11151d);
+}
+
+.editor-picker-bar button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.editor-picker-bar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.editor-picker-path {
+  color: var(--muted, #9da7b6);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-picker-list {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 4px;
+}
+
+.editor-picker-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text, #d8dee9);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-picker-item:hover {
+  background: var(--surface-raise, #181e28);
+}
+
+.editor-picker-item.selected {
+  background: var(--accent, #1793d1);
+  color: #fff;
+}
+
+.editor-picker-empty {
+  padding: 10px;
+  color: var(--muted, #9da7b6);
+  font-size: 12px;
+  text-align: center;
+}
+
 .editor-dialog-error {
   min-height: 1em;
   margin: 0;
@@ -271,12 +334,6 @@
 @container valcon-window (max-width: 560px) {
   .editor-toolbar-status {
     display: none;
-  }
-
-  .editor-gutter {
-    flex-basis: 38px;
-    padding-left: 5px;
-    padding-right: 5px;
   }
 
   .editor-text {

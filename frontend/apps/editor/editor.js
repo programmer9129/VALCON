@@ -17,7 +17,6 @@ const WARN_BYTES = 512 * 1024;
 
 export function startEditor(root, win, appmanager) {
   const tabsEl = root.querySelector(".editor-tabs");
-  const gutter = root.querySelector(".editor-gutter-inner");
   const text = root.querySelector(".editor-text");
   const pathEl = root.querySelector(".editor-path");
   const badgeEl = root.querySelector(".editor-badge");
@@ -29,14 +28,19 @@ export function startEditor(root, win, appmanager) {
   const dialogPath = root.querySelector(".editor-dialog-path");
   const dialogError = root.querySelector(".editor-dialog-error");
   const toolbarStatus = root.querySelector(".editor-toolbar-status");
+  const picker = root.querySelector(".editor-picker");
+  const pickerList = root.querySelector(".editor-picker-list");
+  const pickerPathEl = root.querySelector(".editor-picker-path");
+  const pickerUp = root.querySelector(".editor-picker-up");
 
   const tabs = [];
   let activeId = null;
   let wrap = false;
   let disposed = false;
-  let lineCount = 0;
   let dialogMode = "open";
   let operationId = 0;
+  let pickerPath = "";
+  let pickerRequest = 0;
 
   const activeTab = () => tabs.find((tab) => tab.id === activeId) || null;
 
@@ -164,7 +168,6 @@ export function startEditor(root, win, appmanager) {
     text.scrollTop = 0;
     text.scrollLeft = 0;
 
-    syncGutter();
     syncStatus();
     updateDirtyUI();
   }
@@ -179,21 +182,6 @@ export function startEditor(root, win, appmanager) {
     }
 
     return count;
-  }
-
-  function syncGutter() {
-    const lines = countLines(text.value);
-
-    if (lines !== lineCount) {
-      lineCount = lines;
-
-      gutter.textContent = Array.from(
-          { length: lines },
-          (_, index) => index + 1,
-      ).join("\n");
-    }
-
-    gutter.style.transform = `translateY(${-text.scrollTop}px)`;
   }
 
   function syncStatus() {
@@ -224,23 +212,125 @@ export function startEditor(root, win, appmanager) {
     tab.dirty = tab.content !== tab.savedContent;
 
     refreshDirtyIndicators();
-    syncGutter();
     syncStatus();
+  }
+
+  function pickerParent(path) {
+    const clean = String(path || "").replace(/\/+$/, "");
+    const index = clean.lastIndexOf("/");
+
+    return index < 0 ? "" : clean.slice(0, index);
+  }
+
+  async function loadPicker(path) {
+    const normalized = normalizePath(path);
+    const requestId = ++pickerRequest;
+
+    const loading = document.createElement("div");
+    loading.className = "editor-picker-empty";
+    loading.textContent = "Loading…";
+    pickerList.replaceChildren(loading);
+
+    try {
+      const response = await fs("ls", { cwd: normalized });
+
+      if (requestId !== pickerRequest || disposed) return;
+
+      const result = response.result || {};
+      const entries = Array.isArray(result.entries) ? result.entries : [];
+
+      pickerPath = normalized;
+      pickerPathEl.textContent = normalized ? `/${normalized}` : "/";
+      pickerUp.disabled = !normalized;
+      pickerList.replaceChildren();
+
+      const dirs = entries.filter(
+          (entry) => entry.kind === "dir" || entry.kind === "directory",
+      );
+      const files = entries.filter((entry) => entry.kind === "file");
+      const items = [...dirs, ...files];
+
+      if (items.length === 0) {
+        const empty = document.createElement("div");
+
+        empty.className = "editor-picker-empty";
+        empty.textContent = "(empty directory)";
+        pickerList.appendChild(empty);
+        return;
+      }
+
+      for (const entry of items) {
+        const isDir =
+            entry.kind === "dir" || entry.kind === "directory";
+        const item = document.createElement("button");
+
+        item.type = "button";
+        item.className = "editor-picker-item";
+        item.dataset.dir = isDir ? "1" : "0";
+        item.dataset.name = entry.name;
+        item.textContent = `${isDir ? "📁" : "📄"} ${entry.name}`;
+
+        item.addEventListener("click", () => {
+          if (isDir) {
+            const next = pickerPath
+                ? `${pickerPath}/${entry.name}`
+                : entry.name;
+
+            loadPicker(next).catch(reportError);
+            return;
+          }
+
+          dialogPath.value = pickerPath
+              ? `${pickerPath}/${entry.name}`
+              : entry.name;
+
+          pickerList
+              .querySelectorAll(".editor-picker-item.selected")
+              .forEach((el) => el.classList.remove("selected"));
+
+          item.classList.add("selected");
+          dialogError.textContent = "";
+        });
+
+        pickerList.appendChild(item);
+      }
+    } catch (error) {
+      if (requestId !== pickerRequest || disposed) return;
+
+      pickerList.replaceChildren();
+
+      const failed = document.createElement("div");
+
+      failed.className = "editor-picker-empty";
+      failed.textContent = error.message || "Could not list files.";
+      pickerList.appendChild(failed);
+    }
   }
 
   function showDialog(mode) {
     dialogMode = mode;
 
+    const isOpen = mode === "open";
+
     dialogTitle.textContent =
-        mode === "open" ? "Open file" : "Save file as";
+        isOpen ? "Open file" : "Save file as";
 
     dialog.querySelector('[type="submit"]').textContent =
-        mode === "open" ? "Open" : "Save";
+        isOpen ? "Open" : "Save";
 
     dialogPath.value =
         mode === "saveas" ? activeTab()?.path ?? "" : "";
 
     dialogError.textContent = "";
+    picker.hidden = !isOpen;
+
+    if (isOpen) {
+      const tab = activeTab();
+      const start = tab ? dirname(tab.path) : "";
+
+      loadPicker(start).catch(reportError);
+    }
+
     overlay.hidden = false;
 
     dialogPath.focus();
@@ -349,7 +439,6 @@ export function startEditor(root, win, appmanager) {
           text.value = "";
           text.disabled = true;
 
-          syncGutter();
           syncStatus();
         }
       }
@@ -483,8 +572,11 @@ export function startEditor(root, win, appmanager) {
       .querySelector("[data-dismiss]")
       .addEventListener("click", hideDialog);
 
+  pickerUp.addEventListener("click", () => {
+    loadPicker(pickerParent(pickerPath)).catch(reportError);
+  });
+
   text.addEventListener("input", markDirty);
-  text.addEventListener("scroll", syncGutter);
   text.addEventListener("keyup", syncStatus);
   text.addEventListener("click", syncStatus);
   text.addEventListener("select", syncStatus);
@@ -576,7 +668,6 @@ export function startEditor(root, win, appmanager) {
   text.disabled = true;
 
   renderTabs();
-  syncGutter();
   syncStatus();
   updateTitle();
 
