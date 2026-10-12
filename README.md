@@ -28,13 +28,14 @@ If needed or possible we will add more things; for now they are not planned.
 
 ### STATUS
 
-Under development.
+Completed 
 
 ### COMMITMENT
 
 - AI has been used to solve heavy and difficult bugs (backend).
 - The project is otherwise fully handmade; no AI has been used beyond heavy or difficult bug solving (backend).
 - AI is used to resolve git repo conflicts (frontend).
+- AI is been used to make the supabase error resolved
 
 ## Tech Stack
 
